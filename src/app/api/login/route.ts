@@ -22,11 +22,11 @@ export async function POST(request: Request) {
       session: result.session,
       participant: result.participant,
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       {
         success: false,
-        message: error instanceof Error ? error.message : '로그인 처리 중 오류가 발생했습니다.',
+        message: '로그인 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.',
       },
       { status: 500 },
     );

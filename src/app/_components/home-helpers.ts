@@ -1,6 +1,7 @@
 export function splitLectureHeading(title: string) {
   const [labelPart, ...rest] = title.split('.');
-  const label = labelPart?.trim() ?? '';
+  const hasExplicitLabel = rest.length > 0;
+  const label = hasExplicitLabel ? (labelPart?.trim() ?? '') : '';
   const titleText = rest.join('.').trim();
 
   return {

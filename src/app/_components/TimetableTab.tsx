@@ -1,7 +1,9 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Application, DayKey, Lecture, TimetableDay, TimeSlot } from '@/types';
+import { formatLectureLocation } from '@/utils/lectures';
+import { DAY_LABELS } from '@/utils/tickets';
 import { isBreakSession, isTimeInsideRange } from './home-helpers';
 import { PersonMark, PinMiniMark } from './home-marks';
 
@@ -11,17 +13,24 @@ export function TimetableTab({
   selectedDay,
   currentTime,
   timetableApplications,
+  purchasedDays,
+  lectureApplicationCountMap,
   onSelectDay,
+  onGoToMyLectures,
 }: {
   activeDay: TimetableDay;
   timetableDays: TimetableDay[];
   selectedDay: DayKey;
   currentTime: string;
   timetableApplications: Array<Application & { lecture: Lecture }>;
+  purchasedDays: DayKey[];
+  lectureApplicationCountMap: Record<string, number>;
   onSelectDay: (day: DayKey) => void;
+  onGoToMyLectures: (day: DayKey, slot: TimeSlot) => void;
 }) {
   const currentRowIndex = activeDay.rows.findIndex((row) => isTimeInsideRange(currentTime, row.time));
   const currentRowRef = useRef<HTMLElement | null>(null);
+  const [purchaseNoticeDay, setPurchaseNoticeDay] = useState<DayKey | null>(null);
 
   useEffect(() => {
     if (currentRowIndex < 0) {
@@ -237,24 +246,38 @@ export function TimetableTab({
                               {selectedApplication.lecture.title}
                             </p>
                             <p className="mt-1 text-[11px] text-[color:var(--ink)]/62">
-                              {selectedApplication.lecture.speaker} · {selectedApplication.lecture.location}
+                              {selectedApplication.lecture.speaker} · {formatLectureLocation(selectedApplication.lecture, lectureApplicationCountMap[selectedApplication.lecture.id] ?? 0)}
                             </p>
                           </>
                         ) : (
                           <p className="mt-1 text-sm font-semibold text-[color:var(--ink)]/62">아직 선택한 강의가 없습니다.</p>
                         )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!purchasedDays.includes(activeDay.day)) {
+                              setPurchaseNoticeDay(activeDay.day);
+                              return;
+                            }
+
+                            onGoToMyLectures(activeDay.day, selectedSlot);
+                          }}
+                          className="mt-3 inline-flex items-center text-sm font-semibold text-[color:var(--ink)] underline decoration-[color:var(--ink)]/35 underline-offset-[5px] transition hover:text-[color:var(--ink)]/72"
+                        >
+                          <span>{selectedApplication ? '변경하러가기 >' : '선택하러 가기 >'}</span>
+                        </button>
                       </div>
                     ) : null}
                     <div className="flex items-center justify-between gap-3">
                       {row.speaker !== '비었음' ? (
                         <p
                           className={[
-                            'inline-flex min-w-0 items-center gap-1.5 text-[11px] font-medium tracking-[0.08em]',
+                            'flex min-w-0 items-start gap-1.5 text-[11px] font-medium tracking-[0.08em]',
                             isCurrent ? 'text-[color:var(--ink)]/42' : 'text-[color:var(--ink)]/68',
                           ].join(' ')}
                         >
                           <PersonMark />
-                          <span className="truncate">
+                          <span className="min-w-0 whitespace-normal break-keep leading-[1.35]">
                             {row.speaker}
                             {row.position && row.position !== '비었음' ? ` · ${row.position}` : ''}
                           </span>
@@ -279,6 +302,28 @@ export function TimetableTab({
           })}
         </div>
       </section>
+
+      {purchaseNoticeDay ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 px-4 pb-4 pt-10 backdrop-blur-[2px] sm:items-center">
+          <div className="w-full max-w-[420px] rounded-[28px] border-[2px] border-[color:var(--ink)] bg-[color:var(--panel)] p-5 shadow-[6px_6px_0_rgba(36,27,22,0.2)]">
+            <p className="font-display text-xs uppercase tracking-[0.35em] text-[color:var(--muted)]">티켓 안내</p>
+            <h3 className="mt-3 text-xl font-semibold leading-tight">{DAY_LABELS[purchaseNoticeDay]} 티켓을 구매해주세요.</h3>
+            <p className="mt-3 text-sm leading-6 text-[color:var(--muted)]">
+              구매한 날짜만 선택세션 강의를 신청하거나 변경할 수 있습니다.
+            </p>
+
+            <div className="mt-5">
+              <button
+                type="button"
+                onClick={() => setPurchaseNoticeDay(null)}
+                className="w-full rounded-[2px] bg-[color:var(--ink)] px-4 py-3 text-sm font-semibold text-[color:var(--paper)]"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

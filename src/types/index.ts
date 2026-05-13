@@ -19,6 +19,7 @@ export interface Lecture {
   title: string;
   speaker: string;
   location: string;
+  capacity?: number | null;
 }
 
 export interface LectureWithSlot extends Lecture {

@@ -5,10 +5,10 @@ export async function GET() {
   try {
     const data = await loadBootstrapData();
     return NextResponse.json(data);
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       {
-        message: error instanceof Error ? error.message : 'Failed to load bootstrap data',
+        message: '데이터를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.',
       },
       { status: 500 },
     );

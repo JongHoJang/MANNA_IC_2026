@@ -1,3 +1,5 @@
+import type { Participant } from '@/types';
+
 function MiniInfo({ title, value }: { title: string; value: string }) {
   return (
     <div className="rounded-2xl border border-[color:var(--line)] bg-white px-4 py-4">
@@ -7,9 +9,19 @@ function MiniInfo({ title, value }: { title: string; value: string }) {
   );
 }
 
-export function HomeTab() {
+export function HomeTab({ currentParticipant }: { currentParticipant: Participant }) {
   return (
     <div className="space-y-4">
+      <section className="space-y-4 px-1 pt-1">
+        <h2 className="max-w-[19ch] text-[2rem] font-semibold leading-[1.06] tracking-[-0.05em] text-[color:var(--ink)] sm:text-[2.15rem]">
+          안녕하세요 {currentParticipant.name} {currentParticipant.position}님,
+          <br />
+          만나 IC 2026에
+          <br />
+          오신것을 환영합니다.
+        </h2>
+      </section>
+
       <section className="overflow-hidden rounded-[28px] border border-[color:var(--line)] bg-[linear-gradient(180deg,rgba(238,202,126,0.64),rgba(255,250,240,0.98))] p-5 paper-border">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">

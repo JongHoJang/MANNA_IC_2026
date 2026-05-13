@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { Application, DayKey, Lecture, Participant } from '@/types';
 import { DAY_LABELS, DAY_ORDER, getPurchaseSummary } from '@/utils/tickets';
-import { decorateLectures } from '@/utils/lectures';
+import { decorateLectures, formatLectureLocation } from '@/utils/lectures';
 import {
   getApplicationCountByLecture,
   getApplicationsByDayForParticipant,
@@ -138,7 +138,7 @@ export function AdminDashboard({
                           </p>
                           <h3 className="mt-1 text-base font-semibold">{lecture.title}</h3>
                           <p className="mt-1 text-sm text-[color:var(--muted)]">
-                            {lecture.speaker} · {lecture.location}
+                            {lecture.speaker} · {formatLectureLocation(lecture, count)}
                           </p>
                         </div>
                         <span className="rounded-full bg-[color:var(--accent-soft)] px-3 py-1 text-xs font-semibold">

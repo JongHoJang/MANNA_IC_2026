@@ -34,3 +34,11 @@ export function getLecturesByDay(rawLectures: Lecture[]) {
 export function findLectureById(lectureId: string, rawLectures: Lecture[]) {
   return decorateLectures(rawLectures).find((lecture) => lecture.id === lectureId);
 }
+
+export function formatLectureLocation(lecture: Lecture, applicationCount?: number) {
+  if (!lecture.capacity || lecture.capacity <= 0 || typeof applicationCount !== 'number') {
+    return lecture.location;
+  }
+
+  return `${lecture.location} (${applicationCount}/${lecture.capacity})`;
+}

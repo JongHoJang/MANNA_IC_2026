@@ -29,6 +29,7 @@ type LectureRecord = {
   title: string | null;
   speaker: string | null;
   location: string | null;
+  capacity?: number | null;
   date?: string | null;
   slot_order?: number | null;
 };
@@ -165,7 +166,7 @@ export async function loadBootstrapData(): Promise<BootstrapData> {
 
   const [participantsResult, lecturesResult, applicationsResult, timetableRowsResult] = await Promise.all([
     supabase.from('participants').select('id, name, phone, position, is_admin, ticket_info, day1, day2, day3').order('created_at'),
-    supabase.from('lectures').select('id, day, title, speaker, location, date, slot_order').order('created_at'),
+    supabase.from('lectures').select('id, day, title, speaker, location, capacity, date, slot_order').order('created_at'),
     supabase.from('registrations').select('id, participant_id, day, slot_order, lecture_id').order('created_at'),
     supabase.from('timetable_rows').select('day, sort_order, time, label, title, speaker, position, place').order('sort_order'),
   ]);
@@ -199,6 +200,7 @@ export async function loadBootstrapData(): Promise<BootstrapData> {
       title: lecture.title?.trim() || '비었음',
       speaker: lecture.speaker?.trim() || '비었음',
       location: lecture.location?.trim() || '비었음',
+      capacity: lecture.capacity ?? null,
     })),
     applications: (applicationsResult.data ?? []).map((application) => ({
       id: application.id,
@@ -266,12 +268,13 @@ export async function loginWithParticipantNameAndPhone(name: string, phone: stri
   };
 }
 
-function createApplicationId() {
+function createApplicationId(useUuidOnly = false) {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return `app-${crypto.randomUUID()}`;
+    return useUuidOnly ? crypto.randomUUID() : `app-${crypto.randomUUID()}`;
   }
 
-  return `app-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+  const fallback = `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+  return useUuidOnly ? fallback : `app-${fallback}`;
 }
 
 export async function upsertLectureApplication(input: {
@@ -360,7 +363,7 @@ export async function upsertLectureApplication(input: {
   );
 
   const payload = {
-    id: existing?.id ?? createApplicationId(),
+    id: existing?.id ?? createApplicationId(true),
     participant_id: input.participantId,
     day: input.day,
     slot_order: input.timeSlot === '1타임' ? 1 : 2,

@@ -48,6 +48,14 @@ export default function HomePage() {
     () => new Map(lectures.map((lecture) => [lecture.id, lecture] as const)) as Map<string, Lecture>,
     [lectures],
   );
+  const lectureApplicationCountMap = useMemo(
+    () =>
+      applications.reduce<Record<string, number>>((accumulator, application) => {
+        accumulator[application.lectureId] = (accumulator[application.lectureId] ?? 0) + 1;
+        return accumulator;
+      }, {}),
+    [applications],
+  );
 
   useEffect(() => {
     if (hydrated && !bootstrapLoaded) {
@@ -164,6 +172,12 @@ export default function HomePage() {
     selectDay(currentParticipant.id, day);
   }
 
+  function handleGoToMyLectures(day: DayKey, slot: TimeSlot) {
+    handleDaySelect(day);
+    setActiveLectureSlot(slot);
+    setActiveTab('my-lectures');
+  }
+
   async function handleApply(day: DayKey, timeSlot: TimeSlot, lectureId: string) {
     if (!currentParticipant) {
       return false;
@@ -240,7 +254,7 @@ export default function HomePage() {
           style={{ scrollbarGutter: 'stable' }}
         >
           {message ? <Notice>{message}</Notice> : null}
-          {activeTab === 'home' ? <HomeTab /> : null}
+          {activeTab === 'home' ? <HomeTab currentParticipant={currentParticipant} /> : null}
           {activeTab === 'timetable' ? (
             <TimetableTab
               activeDay={activeTimetable}
@@ -248,7 +262,10 @@ export default function HomePage() {
               selectedDay={activeTimetableDay}
               currentTime={currentTime}
               timetableApplications={timetableApplications}
+              purchasedDays={purchasedDays}
+              lectureApplicationCountMap={lectureApplicationCountMap}
               onSelectDay={setActiveTimetableDay}
+              onGoToMyLectures={handleGoToMyLectures}
             />
           ) : null}
           {activeTab === 'my-lectures' ? (
@@ -261,6 +278,7 @@ export default function HomePage() {
               currentParticipant={currentParticipant}
               lectures={lectures}
               lectureLookup={lectureLookup}
+              lectureApplicationCountMap={lectureApplicationCountMap}
               onSelectDay={handleDaySelect}
               onSelectSlot={setActiveLectureSlot}
               onApplyLecture={handleApply}

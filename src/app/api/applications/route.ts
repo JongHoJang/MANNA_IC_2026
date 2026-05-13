@@ -15,11 +15,11 @@ export async function POST(request: Request) {
     return NextResponse.json(result, {
       status: result.success ? 200 : 400,
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       {
         success: false,
-        message: error instanceof Error ? error.message : '신청 저장 중 오류가 발생했습니다.',
+        message: '신청 저장 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.',
       },
       { status: 500 },
     );
