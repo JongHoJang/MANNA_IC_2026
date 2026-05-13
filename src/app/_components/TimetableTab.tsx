@@ -1,20 +1,23 @@
- 'use client';
+'use client';
 
 import { useEffect, useRef } from 'react';
-import { timetableDays } from '@/mocks';
-import type { DayKey, TimetableDay } from '@/types';
+import type { Application, DayKey, Lecture, TimetableDay, TimeSlot } from '@/types';
 import { isBreakSession, isTimeInsideRange } from './home-helpers';
-import { PinMiniMark } from './home-marks';
+import { PersonMark, PinMiniMark } from './home-marks';
 
 export function TimetableTab({
   activeDay,
+  timetableDays,
   selectedDay,
   currentTime,
+  timetableApplications,
   onSelectDay,
 }: {
   activeDay: TimetableDay;
+  timetableDays: TimetableDay[];
   selectedDay: DayKey;
   currentTime: string;
+  timetableApplications: Array<Application & { lecture: Lecture }>;
   onSelectDay: (day: DayKey) => void;
 }) {
   const currentRowIndex = activeDay.rows.findIndex((row) => isTimeInsideRange(currentTime, row.time));
@@ -76,6 +79,10 @@ export function TimetableTab({
             const isBreak = isBreakSession(row.label, row.title);
             const titleText = row.title.trim();
             const labelText = row.label.trim();
+            const selectedSlot = resolveSelectionSlot(labelText);
+            const selectedApplication = selectedSlot
+              ? timetableApplications.find((application) => application.timeSlot === selectedSlot)
+              : undefined;
 
             if (isBreak) {
               return (
@@ -162,12 +169,29 @@ export function TimetableTab({
                 ref={isCurrent ? currentRowRef : null}
                 key={`${activeDay.day}-${row.time}-${index}`}
                 className={[
-                  'grid grid-cols-[72px_1fr] gap-3 rounded-[2px] border-[2px] border-[color:var(--ink)] bg-[color:var(--paper)] px-4 py-4 shadow-[3px_3px_0_rgba(36,27,22,0.14)] transition',
+                  'relative grid grid-cols-[72px_1fr] gap-3 overflow-hidden rounded-[2px] border-[2px] bg-[color:var(--paper)] px-4 py-4 transition',
                   isCurrent
-                    ? 'border-[color:var(--ink)] bg-[rgba(238,202,126,0.28)] shadow-[4px_4px_0_rgba(36,27,22,0.18)]'
-                    : 'border-[color:var(--ink)]/18 bg-[color:var(--paper)]/72 text-[color:var(--ink)]/72 opacity-70',
+                    ? 'border-[rgba(36,27,22,0.1)] bg-[color:var(--page-bg)] shadow-none'
+                    : 'border-[color:var(--ink)] bg-[rgba(238,202,126,0.28)] text-[color:var(--ink)] shadow-[3px_3px_0_rgba(36,27,22,0.14)]',
                 ].join(' ')}
               >
+                {isCurrent ? (
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0 rounded-[2px]"
+                    style={{
+                      backgroundImage: [
+                        'repeating-linear-gradient(90deg, rgba(36,27,22,0.92) 0 10px, transparent 10px 15px)',
+                        'repeating-linear-gradient(180deg, rgba(36,27,22,0.92) 0 10px, transparent 10px 15px)',
+                        'repeating-linear-gradient(90deg, rgba(36,27,22,0.92) 0 10px, transparent 10px 15px)',
+                        'repeating-linear-gradient(180deg, rgba(36,27,22,0.92) 0 10px, transparent 10px 15px)',
+                      ].join(', '),
+                      backgroundPosition: 'top left, top right, bottom left, top left',
+                      backgroundSize: '100% 2px, 2px 100%, 100% 2px, 2px 100%',
+                      backgroundRepeat: 'no-repeat',
+                    }}
+                  />
+                ) : null}
                 <div className="flex items-start gap-2 pt-0.5 text-[1rem] font-semibold text-[color:var(--ink)]">
                   {isCurrent ? <span className="mt-1 h-2.5 w-2.5 rounded-full bg-[color:var(--ink)]" /> : null}
                   <span>{row.time}</span>
@@ -179,7 +203,7 @@ export function TimetableTab({
                       <p
                         className={[
                           'text-[11px] font-semibold uppercase tracking-[0.22em]',
-                          isCurrent ? 'text-[color:var(--muted)]' : 'text-[color:var(--muted)]/70',
+                          isCurrent ? 'text-[color:var(--muted)]/58' : 'text-[color:var(--muted)]',
                         ].join(' ')}
                       >
                         {labelText}
@@ -188,7 +212,7 @@ export function TimetableTab({
                         <p
                           className={[
                             'whitespace-pre-line text-[1.22rem] font-semibold leading-[1.1] tracking-[-0.05em]',
-                            isCurrent ? 'text-[color:var(--ink)]' : 'text-[color:var(--ink)]/76',
+                            isCurrent ? 'text-[color:var(--ink)]/62' : 'text-[color:var(--ink)]',
                           ].join(' ')}
                         >
                           {titleText}
@@ -204,15 +228,50 @@ export function TimetableTab({
                   </div>
 
                   <div className="mt-4 space-y-2.5">
-                    <p
-                      className={[
-                        'inline-flex items-center gap-1.5 text-[11px] font-medium tracking-[0.08em]',
-                        isCurrent ? 'text-[color:var(--ink)]/68' : 'text-[color:var(--ink)]/48',
-                      ].join(' ')}
-                    >
-                      <PinMiniMark />
-                      <span>{row.place}</span>
-                    </p>
+                    {selectedSlot ? (
+                      <div className="rounded-[2px] border border-[color:var(--ink)]/16 bg-white/55 px-3 py-3">
+                        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#8a6800]">내가 선택한 강의</p>
+                        {selectedApplication ? (
+                          <>
+                            <p className="mt-1 text-sm font-semibold leading-6 text-[color:var(--ink)]">
+                              {selectedApplication.lecture.title}
+                            </p>
+                            <p className="mt-1 text-[11px] text-[color:var(--ink)]/62">
+                              {selectedApplication.lecture.speaker} · {selectedApplication.lecture.location}
+                            </p>
+                          </>
+                        ) : (
+                          <p className="mt-1 text-sm font-semibold text-[color:var(--ink)]/62">아직 선택한 강의가 없습니다.</p>
+                        )}
+                      </div>
+                    ) : null}
+                    <div className="flex items-center justify-between gap-3">
+                      {row.speaker !== '비었음' ? (
+                        <p
+                          className={[
+                            'inline-flex min-w-0 items-center gap-1.5 text-[11px] font-medium tracking-[0.08em]',
+                            isCurrent ? 'text-[color:var(--ink)]/42' : 'text-[color:var(--ink)]/68',
+                          ].join(' ')}
+                        >
+                          <PersonMark />
+                          <span className="truncate">
+                            {row.speaker}
+                            {row.position && row.position !== '비었음' ? ` · ${row.position}` : ''}
+                          </span>
+                        </p>
+                      ) : (
+                        <span />
+                      )}
+                      <p
+                        className={[
+                          'inline-flex shrink-0 items-center justify-end gap-1.5 text-[11px] font-medium tracking-[0.08em]',
+                          isCurrent ? 'text-[color:var(--ink)]/42' : 'text-[color:var(--ink)]/68',
+                        ].join(' ')}
+                      >
+                        <PinMiniMark />
+                        <span>{row.place}</span>
+                      </p>
+                    </div>
                   </div>
                 </div>
               </article>
@@ -222,4 +281,16 @@ export function TimetableTab({
       </section>
     </div>
   );
+}
+
+function resolveSelectionSlot(label: string): TimeSlot | null {
+  if (label === '선택세션1' || label === '첫번째 선택세션') {
+    return '1타임';
+  }
+
+  if (label === '선택세션2' || label === '두번째 선택세션') {
+    return '2타임';
+  }
+
+  return null;
 }

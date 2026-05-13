@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { participants } from '@/mocks';
 import type { DayKey } from '@/types';
 import { useAppStore } from '@/store/useAppStore';
 import { getUnsubmittedParticipants, getParticipantApplications } from '@/utils/applications';
@@ -15,8 +14,13 @@ import { AdminLogin } from './_components/AdminLogin';
 export default function AdminPage() {
   const router = useRouter();
   const session = useAppStore((state) => state.session);
+  const participants = useAppStore((state) => state.participants);
+  const lectures = useAppStore((state) => state.lectures);
   const applications = useAppStore((state) => state.applications);
   const hydrated = useAppStore((state) => state.hydrated);
+  const bootstrapLoaded = useAppStore((state) => state.bootstrapLoaded);
+  const bootstrapError = useAppStore((state) => state.bootstrapError);
+  const fetchBootstrap = useAppStore((state) => state.fetchBootstrap);
   const login = useAppStore((state) => state.login);
   const logout = useAppStore((state) => state.logout);
 
@@ -31,7 +35,13 @@ export default function AdminPage() {
     }
   }, [router, session?.role]);
 
-  const currentParticipant = session ? findParticipantById(session.participantId) : undefined;
+  useEffect(() => {
+    if (hydrated && !bootstrapLoaded) {
+      void fetchBootstrap();
+    }
+  }, [bootstrapLoaded, fetchBootstrap, hydrated]);
+
+  const currentParticipant = session ? findParticipantById(session.participantId, participants) : undefined;
   const adminParticipant = participants.find(isAdminParticipant);
   const attendeeParticipants = participants.filter((participant) => !isAdminParticipant(participant));
   const submittedParticipants = attendeeParticipants.filter(
@@ -42,10 +52,10 @@ export default function AdminPage() {
     attendeeParticipants.some((participant) => participant.id === application.participantId),
   ).length;
 
-  function handleLoginSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleLoginSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const result = login(name, phone);
+    const result = await login(name, phone);
     setMessage(result.message);
 
     if (!result.success) {
@@ -61,8 +71,12 @@ export default function AdminPage() {
     setPhone('');
   }
 
-  if (!hydrated) {
+  if (!hydrated || !bootstrapLoaded) {
     return <LoadingShell outerClassName="min-h-screen max-w-6xl" />;
+  }
+
+  if (bootstrapError) {
+    return <LoadingShell message={bootstrapError} outerClassName="min-h-screen max-w-6xl" />;
   }
 
   if (session?.role === 'user') {
@@ -93,6 +107,7 @@ export default function AdminPage() {
 
   return (
     <AdminDashboard
+      lectures={lectures}
       applications={applications}
       attendeeParticipants={attendeeParticipants}
       submittedParticipants={submittedParticipants}

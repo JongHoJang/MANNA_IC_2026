@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { lectures, timetableDays } from '@/mocks';
 import type { DayKey, Lecture, TimeSlot } from '@/types';
 import { useAppStore } from '@/store/useAppStore';
 import { getPurchaseTicketSummary, getPurchasedDays, hasPurchasedDay } from '@/utils/tickets';
@@ -18,14 +17,18 @@ import { MyLecturesTab } from './_components/MyLecturesTab';
 import { TimetableTab } from './_components/TimetableTab';
 import { GuideTab } from './_components/GuideTab';
 
-const lectureLookup = new Map(lectures.map((lecture) => [lecture.id, lecture] as const)) as Map<string, Lecture>;
-
 export default function HomePage() {
   const router = useRouter();
   const session = useAppStore((state) => state.session);
+  const participants = useAppStore((state) => state.participants);
+  const lectures = useAppStore((state) => state.lectures);
   const applications = useAppStore((state) => state.applications);
+  const timetableDays = useAppStore((state) => state.timetableDays);
   const selectedDayByParticipantId = useAppStore((state) => state.selectedDayByParticipantId);
   const hydrated = useAppStore((state) => state.hydrated);
+  const bootstrapLoaded = useAppStore((state) => state.bootstrapLoaded);
+  const bootstrapError = useAppStore((state) => state.bootstrapError);
+  const fetchBootstrap = useAppStore((state) => state.fetchBootstrap);
   const login = useAppStore((state) => state.login);
   const logout = useAppStore((state) => state.logout);
   const selectDay = useAppStore((state) => state.selectDay);
@@ -41,6 +44,16 @@ export default function HomePage() {
   const [activeTab, setActiveTab] = useState<AppTab>('timetable');
   const didAutoOpenTimetable = useRef(false);
   const contentScrollRef = useRef<HTMLDivElement | null>(null);
+  const lectureLookup = useMemo(
+    () => new Map(lectures.map((lecture) => [lecture.id, lecture] as const)) as Map<string, Lecture>,
+    [lectures],
+  );
+
+  useEffect(() => {
+    if (hydrated && !bootstrapLoaded) {
+      void fetchBootstrap();
+    }
+  }, [bootstrapLoaded, fetchBootstrap, hydrated]);
 
   useEffect(() => {
     if (session?.role === 'admin') {
@@ -59,7 +72,7 @@ export default function HomePage() {
     return () => window.clearInterval(interval);
   }, []);
 
-  const currentParticipant = session ? findParticipantById(session.participantId) : undefined;
+  const currentParticipant = session ? findParticipantById(session.participantId, participants) : undefined;
   const purchasedDays = useMemo(
     () => (currentParticipant ? getPurchasedDays(currentParticipant.ticketText) : []),
     [currentParticipant],
@@ -69,6 +82,19 @@ export default function HomePage() {
     : activeDay;
   const accessSummary = currentParticipant ? getPurchaseTicketSummary(currentParticipant.ticketText) : '';
   const activeTimetable = timetableDays.find((day) => day.day === activeTimetableDay) ?? timetableDays[0];
+  const timetableApplications = useMemo(() => {
+    if (!currentParticipant) {
+      return [];
+    }
+
+    return applications
+      .filter((application) => application.participantId === currentParticipant.id && application.day === activeTimetableDay)
+      .map((application) => ({
+        ...application,
+        lecture: lectureLookup.get(application.lectureId),
+      }))
+      .filter((application): application is typeof application & { lecture: Lecture } => Boolean(application.lecture));
+  }, [activeTimetableDay, applications, currentParticipant, lectureLookup]);
 
   useEffect(() => {
     if (!currentParticipant) {
@@ -103,10 +129,10 @@ export default function HomePage() {
     contentScrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
   }, [activeTab]);
 
-  function handleLoginSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleLoginSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const result = login(name, phone);
+    const result = await login(name, phone);
 
     if (!result.success) {
       setMessage(result.message);
@@ -138,12 +164,12 @@ export default function HomePage() {
     selectDay(currentParticipant.id, day);
   }
 
-  function handleApply(day: DayKey, timeSlot: TimeSlot, lectureId: string) {
+  async function handleApply(day: DayKey, timeSlot: TimeSlot, lectureId: string) {
     if (!currentParticipant) {
       return false;
     }
 
-    const result = applyLecture(currentParticipant.id, day, timeSlot, lectureId);
+    const result = await applyLecture(currentParticipant.id, day, timeSlot, lectureId);
 
     if (!result.success) {
       setMessage(result.message);
@@ -154,8 +180,12 @@ export default function HomePage() {
     return true;
   }
 
-  if (!hydrated) {
+  if (!hydrated || !bootstrapLoaded) {
     return <LoadingShell />;
+  }
+
+  if (bootstrapError) {
+    return <LoadingShell message={bootstrapError} />;
   }
 
   if (session?.role === 'admin') {
@@ -214,8 +244,10 @@ export default function HomePage() {
           {activeTab === 'timetable' ? (
             <TimetableTab
               activeDay={activeTimetable}
+              timetableDays={timetableDays}
               selectedDay={activeTimetableDay}
               currentTime={currentTime}
+              timetableApplications={timetableApplications}
               onSelectDay={setActiveTimetableDay}
             />
           ) : null}
@@ -227,6 +259,7 @@ export default function HomePage() {
               accessSummary={accessSummary}
               purchasedDays={purchasedDays}
               currentParticipant={currentParticipant}
+              lectures={lectures}
               lectureLookup={lectureLookup}
               onSelectDay={handleDaySelect}
               onSelectSlot={setActiveLectureSlot}

@@ -1,4 +1,3 @@
-import { participants } from '@/mocks';
 import type { Application, DayKey, LectureWithSlot, Participant, TimeSlot } from '@/types';
 import { DAY_ORDER } from './tickets';
 
@@ -67,6 +66,7 @@ export function getApplicationsByDayForParticipant(applications: Application[], 
 
 export function getParticipantApplicationNames(
   applications: Application[],
+  participants: Participant[],
   lecture: LectureWithSlot,
 ) {
   const ids = applications
@@ -88,4 +88,3 @@ export function getUnsubmittedParticipants(sourceParticipants: Participant[], ap
       !participant.position.trim().toLowerCase().includes('admin') && !submittedIds.has(participant.id),
   );
 }
-

@@ -1,4 +1,3 @@
-import { participants } from '@/mocks';
 import type { AppSession, Participant, UserRole } from '@/types';
 
 export function normalizePhone(phone: string) {
@@ -13,7 +12,7 @@ export function getRoleForParticipant(participant: Participant): UserRole {
   return isAdminParticipant(participant) ? 'admin' : 'user';
 }
 
-export function findParticipantByLogin(name: string, phone: string) {
+export function findParticipantByLogin(name: string, phone: string, participants: Participant[]) {
   const targetName = name.trim().replace(/\s+/g, '').toLowerCase();
   const targetPhone = normalizePhone(phone);
 
@@ -24,7 +23,7 @@ export function findParticipantByLogin(name: string, phone: string) {
   );
 }
 
-export function findParticipantById(participantId: string) {
+export function findParticipantById(participantId: string, participants: Participant[]) {
   return participants.find((participant) => participant.id === participantId);
 }
 

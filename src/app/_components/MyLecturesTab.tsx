@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { lectures } from '@/mocks';
 import type { Application, DayKey, Lecture, Participant, TimeSlot } from '@/types';
 import { DAY_LABELS, DAY_ORDER } from '@/utils/tickets';
 import { splitLectureHeading } from './home-helpers';
@@ -19,6 +18,7 @@ export function MyLecturesTab({
   accessSummary,
   purchasedDays,
   currentParticipant,
+  lectures,
   lectureLookup,
   onSelectDay,
   onSelectSlot,
@@ -30,16 +30,17 @@ export function MyLecturesTab({
   accessSummary: string;
   purchasedDays: DayKey[];
   currentParticipant: Participant;
+  lectures: Lecture[];
   lectureLookup: Map<string, Lecture>;
   onSelectDay: (day: DayKey) => void;
   onSelectSlot: (slot: TimeSlot) => void;
-  onApplyLecture: (day: DayKey, timeSlot: TimeSlot, lectureId: string) => boolean;
+  onApplyLecture: (day: DayKey, timeSlot: TimeSlot, lectureId: string) => Promise<boolean>;
 }) {
   const dayApplications = applications.filter(
     (application) => application.participantId === currentParticipant.id && application.day === activeDay,
   );
   const slotApplications = new Map(dayApplications.map((application) => [application.timeSlot, application] as const));
-  const dayLectures = useMemo(() => lectures.filter((lecture) => lecture.day === activeDay), [activeDay]);
+  const dayLectures = useMemo(() => lectures.filter((lecture) => lecture.day === activeDay), [activeDay, lectures]);
   const [expandedSlot, setExpandedSlot] = useState<TimeSlot | null>(null);
   const [pendingLectureBySlot, setPendingLectureBySlot] = useState<Partial<Record<TimeSlot, string>>>({});
   const [confirmTarget, setConfirmTarget] = useState<{ slot: TimeSlot; lectureId: string } | null>(null);
@@ -55,8 +56,8 @@ export function MyLecturesTab({
     setConfirmTarget(null);
   }
 
-  function commitPendingLecture(slot: TimeSlot, lectureId: string) {
-    const success = onApplyLecture(activeDay, slot, lectureId);
+  async function commitPendingLecture(slot: TimeSlot, lectureId: string) {
+    const success = await onApplyLecture(activeDay, slot, lectureId);
 
     if (success) {
       setExpandedSlot(null);
@@ -331,7 +332,9 @@ export function MyLecturesTab({
               </button>
               <button
                 type="button"
-                onClick={() => commitPendingLecture(confirmTarget.slot, confirmTarget.lectureId)}
+                onClick={() => {
+                  void commitPendingLecture(confirmTarget.slot, confirmTarget.lectureId);
+                }}
                 className="flex-1 rounded-[2px] bg-[color:var(--ink)] px-4 py-3 text-sm font-semibold text-[color:var(--paper)]"
               >
                 반영하기

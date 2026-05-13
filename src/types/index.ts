@@ -42,6 +42,8 @@ export interface TimetableRow {
   time: string;
   label: string;
   title: string;
+  speaker?: string;
+  position?: string;
   place: string;
 }
 

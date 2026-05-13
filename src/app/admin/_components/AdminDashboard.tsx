@@ -1,6 +1,5 @@
 import Link from 'next/link';
-import { lectures } from '@/mocks';
-import type { Application, DayKey, Participant } from '@/types';
+import type { Application, DayKey, Lecture, Participant } from '@/types';
 import { DAY_LABELS, DAY_ORDER, getPurchaseSummary } from '@/utils/tickets';
 import { decorateLectures } from '@/utils/lectures';
 import {
@@ -10,8 +9,6 @@ import {
   getParticipantApplications,
 } from '@/utils/applications';
 import { Notice } from '@/components/ui/Notice';
-
-const decoratedLectures = decorateLectures(lectures);
 
 function Metric({ label, value }: { label: string; value: number }) {
   return (
@@ -48,6 +45,7 @@ function FilterPill({
 }
 
 export function AdminDashboard({
+  lectures,
   applications,
   attendeeParticipants,
   submittedParticipants,
@@ -58,6 +56,7 @@ export function AdminDashboard({
   onDayFilterChange,
   onLogout,
 }: {
+  lectures: Lecture[];
   applications: Application[];
   attendeeParticipants: Participant[];
   submittedParticipants: Participant[];
@@ -69,6 +68,7 @@ export function AdminDashboard({
   onLogout: () => void;
 }) {
   const lectureCountMap = getApplicationCountByLecture(applications);
+  const decoratedLectures = decorateLectures(lectures);
   const filteredLectures =
     dayFilter === 'all' ? decoratedLectures : decoratedLectures.filter((lecture) => lecture.day === dayFilter);
 
@@ -126,7 +126,7 @@ export function AdminDashboard({
 
               <div className="mt-4 space-y-3">
                 {filteredLectures.map((lecture) => {
-                  const names = getParticipantApplicationNames(applications, lecture);
+                  const names = getParticipantApplicationNames(applications, attendeeParticipants, lecture);
                   const count = lectureCountMap[lecture.id] ?? 0;
 
                   return (

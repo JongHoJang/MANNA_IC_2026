@@ -1,29 +1,32 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import { applications as seedApplications, lectures } from '@/mocks';
-import type { AppSession, Application, DayKey, TimeSlot } from '@/types';
-import { findLectureById } from '@/utils/lectures';
-import { findParticipantById, findParticipantByLogin, createSession } from '@/utils/session';
+import type { AppSession, Application, DayKey, Lecture, Participant, TimeSlot, TimetableDay } from '@/types';
+import { findParticipantById } from '@/utils/session';
 import { hasPurchasedDay } from '@/utils/tickets';
-import { upsertApplication } from '@/utils/applications';
 
 interface AppStore {
   session: AppSession | null;
+  participants: Participant[];
+  lectures: Lecture[];
   applications: Application[];
+  timetableDays: TimetableDay[];
   selectedDayByParticipantId: Record<string, DayKey>;
   hydrated: boolean;
+  bootstrapLoaded: boolean;
+  bootstrapError: string | null;
   setHydrated: (hydrated: boolean) => void;
-  login: (name: string, phone: string) => {
+  fetchBootstrap: () => Promise<void>;
+  login: (name: string, phone: string) => Promise<{
     success: boolean;
     message: string;
     role?: AppSession['role'];
-  };
+  }>;
   logout: () => void;
   selectDay: (participantId: string, day: DayKey) => void;
-  applyLecture: (participantId: string, day: DayKey, timeSlot: TimeSlot, lectureId: string) => {
+  applyLecture: (participantId: string, day: DayKey, timeSlot: TimeSlot, lectureId: string) => Promise<{
     success: boolean;
     message: string;
-  };
+  }>;
   resetDemo: () => void;
 }
 
@@ -31,27 +34,66 @@ export const useAppStore = create<AppStore>()(
   persist(
     (set, get) => ({
       session: null,
-      applications: seedApplications,
+      participants: [],
+      lectures: [],
+      applications: [],
+      timetableDays: [],
       selectedDayByParticipantId: {},
       hydrated: false,
+      bootstrapLoaded: false,
+      bootstrapError: null,
       setHydrated: (hydrated) => set({ hydrated }),
-      login: (name, phone) => {
-        const participant = findParticipantByLogin(name, phone);
+      fetchBootstrap: async () => {
+        const response = await fetch('/api/bootstrap', {
+          cache: 'no-store',
+        });
+        const payload = await response.json();
 
-        if (!participant) {
+        if (!response.ok) {
+          set({
+            bootstrapLoaded: true,
+            bootstrapError: payload.message ?? '데이터를 불러오지 못했습니다.',
+          });
+          return;
+        }
+
+        set({
+          participants: payload.participants,
+          lectures: payload.lectures,
+          applications: payload.applications,
+          timetableDays: payload.timetableDays,
+          bootstrapLoaded: true,
+          bootstrapError: null,
+        });
+      },
+      login: async (name, phone) => {
+        const response = await fetch('/api/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ name, phone }),
+        });
+        const payload = await response.json();
+
+        if (!response.ok || !payload.success) {
           return {
             success: false,
-            message: '등록된 이름과 휴대폰 번호를 찾지 못했습니다.',
+            message: payload.message ?? '로그인에 실패했습니다.',
           };
         }
 
-        const session = createSession(participant);
-        set({ session });
+        set((state) => ({
+          session: payload.session,
+          participants: state.participants.some((participant) => participant.id === payload.participant.id)
+            ? state.participants
+            : [...state.participants, payload.participant],
+        }));
 
         return {
           success: true,
-          message: `${participant.name} 님으로 로그인했습니다.`,
-          role: session.role,
+          message: payload.message,
+          role: payload.session.role,
         };
       },
       logout: () => set({ session: null }),
@@ -62,9 +104,9 @@ export const useAppStore = create<AppStore>()(
             [participantId]: day,
           },
         })),
-      applyLecture: (participantId, day, timeSlot, lectureId) => {
-        const participant = findParticipantById(participantId);
-        const lecture = findLectureById(lectureId, lectures);
+      applyLecture: async (participantId, day, timeSlot, lectureId) => {
+        const participant = findParticipantById(participantId, get().participants);
+        const lecture = get().lectures.find((item) => item.id === lectureId);
 
         if (!participant || !lecture) {
           return {
@@ -87,40 +129,46 @@ export const useAppStore = create<AppStore>()(
           };
         }
 
-        const duplicateLecture = get().applications.find(
-          (application) =>
-            application.participantId === participantId &&
-            application.day === day &&
-            application.lectureId === lectureId &&
-            application.timeSlot !== timeSlot,
-        );
-
-        if (duplicateLecture) {
-          return {
-            success: false,
-            message: '같은 강의를 다른 슬롯에 중복으로 선택할 수 없습니다.',
-          };
-        }
-
-        set((state) => ({
-          applications: upsertApplication(state.applications, {
+        const response = await fetch('/api/applications', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
             participantId,
             day,
             timeSlot,
             lectureId: lecture.id,
           }),
-        }));
+        });
+        const payload = await response.json();
+
+        if (!response.ok || !payload.success) {
+          return {
+            success: false,
+            message: payload.message ?? '강의 신청 저장에 실패했습니다.',
+          };
+        }
+
+        set({
+          applications: payload.applications,
+        });
 
         return {
           success: true,
-          message: `${day} ${timeSlot} 선택이 반영되었습니다.`,
+          message: payload.message,
         };
       },
       resetDemo: () =>
         set({
           session: null,
-          applications: seedApplications,
+          participants: [],
+          lectures: [],
+          applications: [],
+          timetableDays: [],
           selectedDayByParticipantId: {},
+          bootstrapLoaded: false,
+          bootstrapError: null,
         }),
     }),
     {
@@ -128,7 +176,6 @@ export const useAppStore = create<AppStore>()(
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         session: state.session,
-        applications: state.applications,
         selectedDayByParticipantId: state.selectedDayByParticipantId,
       }),
       onRehydrateStorage: () => (state) => {

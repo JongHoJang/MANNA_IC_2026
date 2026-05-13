@@ -1,10 +1,9 @@
-import { lectures } from '@/mocks';
 import type { DayKey, Lecture, LectureWithSlot, TimeSlot } from '@/types';
 import { DAY_ORDER } from './tickets';
 
 export const TIME_SLOTS: TimeSlot[] = ['1타임', '2타임'];
 
-export function decorateLectures(rawLectures: Lecture[] = lectures): LectureWithSlot[] {
+export function decorateLectures(rawLectures: Lecture[]): LectureWithSlot[] {
   const orderMap = new Map<DayKey, number>();
 
   return rawLectures.map((lecture) => {
@@ -19,7 +18,7 @@ export function decorateLectures(rawLectures: Lecture[] = lectures): LectureWith
   });
 }
 
-export function getLecturesByDay(rawLectures: Lecture[] = lectures) {
+export function getLecturesByDay(rawLectures: Lecture[]) {
   const decorated = decorateLectures(rawLectures);
 
   return DAY_ORDER.map((day) => {
@@ -32,6 +31,6 @@ export function getLecturesByDay(rawLectures: Lecture[] = lectures) {
   });
 }
 
-export function findLectureById(lectureId: string, rawLectures: Lecture[] = lectures) {
+export function findLectureById(lectureId: string, rawLectures: Lecture[]) {
   return decorateLectures(rawLectures).find((lecture) => lecture.id === lectureId);
 }
