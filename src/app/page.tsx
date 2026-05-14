@@ -6,7 +6,7 @@ import type { FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import type { DayKey, Lecture, TimeSlot } from '@/types';
 import { useAppStore } from '@/store/useAppStore';
-import { getPurchaseTicketSummary, getPurchasedDays, hasPurchasedDay } from '@/utils/tickets';
+import { getPurchasedDays, hasPurchasedDay } from '@/utils/tickets';
 import { findParticipantById } from '@/utils/session';
 import { LoadingShell } from '@/components/ui/LoadingShell';
 import { Notice } from '@/components/ui/Notice';
@@ -41,7 +41,7 @@ export default function HomePage() {
   const [phone, setPhone] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const [activeDay, setActiveDay] = useState<DayKey>('Day1');
-  const [activeTimetableDay, setActiveTimetableDay] = useState<DayKey>('Day2');
+  const [activeTimetableDay, setActiveTimetableDay] = useState<DayKey>('Day1');
   const [activeLectureSlot, setActiveLectureSlot] = useState<TimeSlot>('1타임');
   const [currentTime, setCurrentTime] = useState(() => formatCurrentTime(new Date()));
   const [activeTab, setActiveTab] = useState<AppTab>('home');
@@ -90,7 +90,6 @@ export default function HomePage() {
   const selectedDay = currentParticipant
     ? (selectedDayByParticipantId[currentParticipant.id] ?? purchasedDays[0] ?? 'Day1')
     : activeDay;
-  const accessSummary = currentParticipant ? getPurchaseTicketSummary(currentParticipant.ticketText) : '';
   const activeTimetable = timetableDays.find((day) => day.day === activeTimetableDay) ?? timetableDays[0];
   const timetableApplications = useMemo(() => {
     if (!currentParticipant) {
@@ -266,7 +265,6 @@ export default function HomePage() {
               activeDay={selectedDay}
               activeSlot={activeLectureSlot}
               applications={applications}
-              accessSummary={accessSummary}
               purchasedDays={purchasedDays}
               currentParticipant={currentParticipant}
               lectures={lectures}

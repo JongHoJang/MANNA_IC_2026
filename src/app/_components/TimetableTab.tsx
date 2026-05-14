@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import type { Application, DayKey, Lecture, TimetableDay, TimeSlot } from '@/types';
 import { formatLectureLocation } from '@/utils/lectures';
 import { DAY_LABELS } from '@/utils/tickets';
@@ -29,20 +29,20 @@ export function TimetableTab({
   onSelectDay: (day: DayKey) => void;
   onGoToMyLectures: (day: DayKey, slot: TimeSlot) => void;
 }) {
-  const currentRowIndex = activeDay.rows.findIndex((row) => isTimeInsideRange(currentTime, row.time));
+  const targetRowIndex = getTargetRowIndex(activeDay.rows, currentTime);
   const currentRowRef = useRef<HTMLElement | null>(null);
   const [purchaseNoticeDay, setPurchaseNoticeDay] = useState<DayKey | null>(null);
 
-  useEffect(() => {
-    if (currentRowIndex < 0) {
-      return;
-    }
-
-    currentRowRef.current?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'center',
+  useLayoutEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      currentRowRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
     });
-  }, [activeDay.day, currentRowIndex]);
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeDay.day, targetRowIndex]);
 
   return (
     <div className="space-y-5">
@@ -85,7 +85,7 @@ export function TimetableTab({
       <section className="space-y-4">
         <div className="space-y-3">
           {activeDay.rows.map((row, index) => {
-            const isCurrent = index === currentRowIndex;
+            const isCurrent = index === targetRowIndex;
             const isBreak = isBreakSession(row.label, row.title);
             const titleText = row.title.trim();
             const labelText = row.label.trim();
@@ -372,4 +372,39 @@ function resolveSelectionSlot(label: string, title?: string, place?: string): Ti
   }
 
   return null;
+}
+
+function getTargetRowIndex(rows: TimetableDay['rows'], currentTime: string) {
+  const currentMinutes = toMinutes(currentTime);
+
+  if (currentMinutes < 0) {
+    return 0;
+  }
+
+  const matchingIndex = rows.findIndex((row) => isTimeInsideRange(currentTime, row.time));
+
+  if (matchingIndex >= 0) {
+    return matchingIndex;
+  }
+
+  const futureIndex = rows.findIndex((row) => {
+    const [start] = row.time.split(' - ');
+    return toMinutes(start) >= currentMinutes;
+  });
+
+  if (futureIndex >= 0) {
+    return futureIndex;
+  }
+
+  return Math.max(rows.length - 1, 0);
+}
+
+function toMinutes(value: string) {
+  const [hours, minutes] = value.split(':').map((part) => Number.parseInt(part, 10));
+
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+    return -1;
+  }
+
+  return hours * 60 + minutes;
 }

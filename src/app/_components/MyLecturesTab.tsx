@@ -13,11 +13,16 @@ const sessionSlots = [
   { slot: '2타임', title: '두번째 선택세션' },
 ] as const;
 
+const DAY_TICKET_LABELS: Record<DayKey, string> = {
+  Day1: 'Day1 (6/23 화)',
+  Day2: 'Day2 (6/24 수)',
+  Day3: 'Day3 (6/25 목)',
+};
+
 export function MyLecturesTab({
   activeDay,
   activeSlot,
   applications,
-  accessSummary,
   purchasedDays,
   currentParticipant,
   lectures,
@@ -30,7 +35,6 @@ export function MyLecturesTab({
   activeDay: DayKey;
   activeSlot: TimeSlot;
   applications: Application[];
-  accessSummary: string;
   purchasedDays: DayKey[];
   currentParticipant: Participant;
   lectures: Lecture[];
@@ -43,13 +47,17 @@ export function MyLecturesTab({
   const dayApplications = applications.filter(
     (application) => application.participantId === currentParticipant.id && application.day === activeDay,
   );
-  const slotApplications = new Map(dayApplications.map((application) => [application.timeSlot, application] as const));
+  const slotApplications = useMemo(() => {
+    return new Map(dayApplications.map((application) => [application.timeSlot, application] as const));
+  }, [dayApplications]);
+  const selectedApplicationBySlot = slotApplications;
   const dayLectures = useMemo(() => lectures.filter((lecture) => lecture.day === activeDay), [activeDay, lectures]);
   const [expandedSlot, setExpandedSlot] = useState<TimeSlot | null>(null);
   const [pendingLectureBySlot, setPendingLectureBySlot] = useState<Partial<Record<TimeSlot, string>>>({});
   const [confirmTarget, setConfirmTarget] = useState<{ slot: TimeSlot; lectureId: string } | null>(null);
   const [purchaseNoticeDay, setPurchaseNoticeDay] = useState<DayKey | null>(null);
   const actionButtonRefs = useRef<Partial<Record<TimeSlot, HTMLButtonElement | null>>>({});
+  const lectureItemRefs = useRef<Partial<Record<TimeSlot, Partial<Record<string, HTMLButtonElement | null>>>>>({});
 
   useEffect(() => {
     setExpandedSlot(null);
@@ -57,6 +65,23 @@ export function MyLecturesTab({
     setConfirmTarget(null);
     setPurchaseNoticeDay(null);
   }, [activeDay]);
+
+  useEffect(() => {
+    if (!expandedSlot) {
+      return;
+    }
+
+    const selectedApplication = selectedApplicationBySlot.get(expandedSlot);
+    const selectedLectureId = selectedApplication?.lectureId;
+
+    if (!selectedLectureId) {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      slowScrollElementIntoView(lectureItemRefs.current[expandedSlot]?.[selectedLectureId], 700);
+    });
+  }, [expandedSlot, selectedApplicationBySlot]);
 
   function closeConfirmModal() {
     setConfirmTarget(null);
@@ -89,10 +114,7 @@ export function MyLecturesTab({
   function scrollActionButtonIntoView(slot: TimeSlot) {
     window.requestAnimationFrame(() => {
       window.setTimeout(() => {
-        actionButtonRefs.current[slot]?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center',
-        });
+        slowScrollElementIntoView(actionButtonRefs.current[slot], 700);
       }, 80);
     });
   }
@@ -113,14 +135,11 @@ export function MyLecturesTab({
     <div className="space-y-5">
       <section className="space-y-4 px-1 pt-1">
         <h2 className="max-w-[15ch] text-[2rem] font-semibold leading-[1.06] tracking-[-0.05em] text-[color:var(--ink)] sm:text-[2.15rem]">
-          선택세션에서
+          선택세션 강의를
           <br />
-          듣고 싶은 강의를 선택해주세요.
+          선택해주세요.
         </h2>
 
-        <div className="inline-flex rounded-[2px] border-2 border-[color:var(--ink)] bg-white px-3 py-2 text-sm font-semibold text-[color:var(--ink)] shadow-[2px_2px_0_rgba(36,27,22,0.18)]">
-          참가일: {accessSummary}
-        </div>
       </section>
 
       <div className="grid grid-cols-3 gap-3">
@@ -141,15 +160,16 @@ export function MyLecturesTab({
                 onSelectDay(day);
               }}
               className={[
-                'h-12 rounded-[2px] border-2 px-2 text-sm font-semibold transition',
+                'h-14 rounded-[2px] border-2 px-2 py-2 text-sm font-semibold leading-[1.05] transition',
                 isActive
                   ? 'border-[color:var(--ink)] bg-[color:var(--ink)] text-[color:var(--paper)]'
                   : purchased
                     ? 'border-[color:var(--line)] bg-[color:var(--paper)] text-[color:var(--ink)]'
-                    : 'border-dashed border-[color:var(--line)] bg-[color:var(--paper)] text-[color:var(--muted)]',
+                    : 'border-dashed border-[color:var(--line)] bg-white/60 text-[color:var(--muted)]/40',
               ].join(' ')}
             >
-              {DAY_LABELS[day]}
+              <span className="block">{DAY_LABELS[day]}</span>
+              <span className="mt-1 block text-[11px] font-medium tracking-[-0.01em] opacity-75">{DAY_TICKET_LABELS[day]}</span>
             </button>
           );
         })}
@@ -182,7 +202,7 @@ export function MyLecturesTab({
             <section
               key={slot}
               className={[
-                'overflow-hidden rounded-[2px] border-[2px] border-[color:var(--ink)] bg-white transition',
+                'overflow-hidden rounded-[2px] border-[2px] border-[color:var(--ink)] bg-[#f3efe8] transition',
                 isActive ? 'shadow-[4px_4px_0_rgba(36,27,22,0.2)]' : 'shadow-[3px_3px_0_rgba(36,27,22,0.14)]',
               ].join(' ')}
             >
@@ -223,13 +243,19 @@ export function MyLecturesTab({
               </div>
 
               <div className="px-4 pb-4">
-                <button
+                  <button
                   ref={(node) => {
                     actionButtonRefs.current[slot] = node;
                   }}
                   type="button"
                   onClick={() => {
                     if (!isExpanded) {
+                      if (application?.lectureId) {
+                        setPendingLectureBySlot((current) => ({
+                          ...current,
+                          [slot]: application.lectureId,
+                        }));
+                      }
                       setExpandedSlot(slot);
                       return;
                     }
@@ -252,16 +278,24 @@ export function MyLecturesTab({
               {isExpanded ? (
                 <div className="border-t-2 border-[color:var(--ink)]/12 bg-[#fcfbf8] px-4 py-4">
                   <div className="space-y-2">
-                    {dayLectures.map((item) => {
+                    {dayLectures.map((item, index) => {
                       const itemPendingInSlot = pendingLectureId === item.id;
                       const itemApplication = dayApplications.find((value) => value.lectureId === item.id);
                       const itemIsSelectedElsewhere = itemApplication && itemApplication.timeSlot !== slot;
                       const itemHeading = splitLectureHeading(item.title);
+                      const itemSessionLabel = `선택세션 ${index + 1}.`;
                       const itemDisabled = Boolean(itemIsSelectedElsewhere);
 
                       return (
                         <button
                           key={item.id}
+                          ref={(node) => {
+                            if (!lectureItemRefs.current[slot]) {
+                              lectureItemRefs.current[slot] = {};
+                            }
+
+                            lectureItemRefs.current[slot]![item.id] = node;
+                          }}
                           type="button"
                           onClick={() => {
                             if (itemDisabled) {
@@ -294,9 +328,11 @@ export function MyLecturesTab({
                           disabled={itemDisabled}
                         >
                           <div className="min-w-0">
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[color:var(--muted)]">
-                              {itemHeading.label}
-                            </p>
+                            {itemSessionLabel ? (
+                              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[color:var(--muted)]">
+                                {itemSessionLabel}
+                              </p>
+                            ) : null}
                             <h4 className="mt-1 text-sm font-semibold leading-snug text-[color:var(--ink)]">
                               {itemHeading.title}
                             </h4>
@@ -450,4 +486,72 @@ export function MyLecturesTab({
       ) : null}
     </div>
   );
+}
+
+function slowScrollElementIntoView(element: HTMLElement | null | undefined, durationMs: number) {
+  if (!element) {
+    return;
+  }
+
+  const container = getScrollContainer(element);
+
+  if (!container) {
+    element.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center',
+    });
+    return;
+  }
+
+  const containerRect = container.getBoundingClientRect();
+  const elementRect = element.getBoundingClientRect();
+  const currentTop = container.scrollTop;
+  const targetTop =
+    currentTop + (elementRect.top - containerRect.top) - container.clientHeight / 2 + elementRect.height / 2;
+  animateScrollTop(container, targetTop, durationMs);
+}
+
+function getScrollContainer(element: HTMLElement) {
+  let current: HTMLElement | null = element.parentElement;
+
+  while (current) {
+    const style = window.getComputedStyle(current);
+    const canScroll =
+      /(auto|scroll|overlay)/.test(style.overflowY) && current.scrollHeight > current.clientHeight;
+
+    if (canScroll) {
+      return current;
+    }
+
+    current = current.parentElement;
+  }
+
+  return null;
+}
+
+function animateScrollTop(container: HTMLElement, targetTop: number, durationMs: number) {
+  const startTop = container.scrollTop;
+  const distance = targetTop - startTop;
+
+  if (Math.abs(distance) < 1) {
+    return;
+  }
+
+  const startTime = window.performance.now();
+
+  const step = (now: number) => {
+    const progress = Math.min(1, (now - startTime) / durationMs);
+    const eased = easeInOutCubic(progress);
+    container.scrollTop = startTop + distance * eased;
+
+    if (progress < 1) {
+      window.requestAnimationFrame(step);
+    }
+  };
+
+  window.requestAnimationFrame(step);
+}
+
+function easeInOutCubic(value: number) {
+  return value < 0.5 ? 4 * value * value * value : 1 - Math.pow(-2 * value + 2, 3) / 2;
 }

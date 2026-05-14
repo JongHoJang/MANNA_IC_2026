@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { useRef, useState } from 'react';
 import type { Participant } from '@/types';
 
+const EVENT_INFO_URL = 'https://event-us.kr/2025mmc/event/120383?utm_source=kakao&utm_medium=dm&utm_campaign=oozioetii0';
 const CAROUSEL_IMAGES = [
   '/home-carousel/main_poster_1.jpg',
   '/home-carousel/main_poster_2.jpg',
@@ -88,6 +89,16 @@ export function HomeTab({ currentParticipant }: { currentParticipant: Participan
             />
           ))}
         </div>
+
+        <a
+          href={EVENT_INFO_URL}
+          target="_blank"
+          rel="noreferrer"
+          className="flex items-center justify-center gap-2 rounded-[2px] border-[2px] border-[color:var(--ink)] bg-white px-4 py-3 text-sm font-semibold text-[color:var(--ink)] shadow-[3px_3px_0_rgba(36,27,22,0.12)] transition hover:translate-y-[1px] hover:shadow-[2px_2px_0_rgba(36,27,22,0.12)]"
+        >
+          <span>행사소개 바로가기</span>
+          <span aria-hidden="true">→</span>
+        </a>
       </section>
     </div>
   );
