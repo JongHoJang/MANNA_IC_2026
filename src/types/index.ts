@@ -18,6 +18,7 @@ export interface Lecture {
   date: string;
   title: string;
   speaker: string;
+  position?: string;
   location: string;
   capacity?: number | null;
 }

@@ -2,10 +2,14 @@
 -- Goal: keep existing participants / lectures / registrations tables,
 -- and add only the metadata needed to remove remaining mock timetable data.
 
--- 1) lectures: add date + slot_order so lecture metadata is self-contained.
+-- 1) lectures: add date + position + slot_order so lecture metadata is self-contained.
 alter table public.lectures
-  add column if not exists date text,
+  add column if not exists date date,
+  add column if not exists position text,
   add column if not exists slot_order int4;
+
+alter table public.lectures
+  alter column date type date using date::date;
 
 -- Optional but recommended defaults/checks.
 alter table public.lectures
@@ -22,7 +26,7 @@ create table if not exists public.timetable_rows (
   title text not null,
   speaker text,
   position text,
-  place text not null,
+  location text not null,
   is_break boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -44,11 +48,17 @@ alter table public.participants
 -- Replace these with your actual row ids if you already have lecture data synced.
 -- update public.lectures set date = '2026-06-23', slot_order = 1 where day = 'Day1' and title like '선택세션1.%';
 -- update public.lectures set date = '2026-06-23', slot_order = 2 where day = 'Day1' and title like '선택세션9.%';
+-- update public.lectures l
+-- set position = tr.position
+-- from public.timetable_rows tr
+-- where l.title = tr.title
+--   and l.speaker = tr.speaker
+--   and tr.position is not null;
 
 -- 5) Example timetable row inserts.
 -- Insert all rows needed by the app, one row per visible schedule line.
 -- Example:
--- insert into public.timetable_rows (day, sort_order, time, label, title, speaker, position, place, is_break)
+-- insert into public.timetable_rows (day, sort_order, time, label, title, speaker, position, location, is_break)
 -- values
 --   ('Day1', 1, '09:00 - 10:00', '접수', 'QR코드 준비', null, null, '1층 안내데스크', false),
 --   ('Day1', 2, '10:00 - 11:00', '메인세션1', '다시, 목회철학', '김병삼', '담임 목사', '2층 시온성전', false);

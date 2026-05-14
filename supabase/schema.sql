@@ -2,42 +2,52 @@ create table if not exists public.participants (
   id text primary key,
   name text not null,
   phone text not null,
-  ticket_text text not null,
-  position text not null
+  position text,
+  ticket_info text,
+  day1 boolean not null default false,
+  day2 boolean not null default false,
+  day3 boolean not null default false,
+  is_admin boolean not null default false,
+  created_at timestamptz not null default now()
 );
 
 create table if not exists public.lectures (
   id text primary key,
   day text not null check (day in ('Day1', 'Day2', 'Day3')),
-  date text not null,
+  date date not null,
   title text not null,
   speaker text not null,
-  location text not null
+  position text,
+  location text not null,
+  capacity int4,
+  slot_order int4 check (slot_order is null or slot_order in (1, 2)),
+  created_at timestamptz not null default now()
 );
 
-create table if not exists public.applications (
+create table if not exists public.registrations (
   id text primary key,
   participant_id text not null references public.participants(id) on delete cascade,
   day text not null check (day in ('Day1', 'Day2', 'Day3')),
-  time_slot text not null check (time_slot in ('1타임', '2타임')),
+  slot_order int4 not null check (slot_order in (1, 2)),
   lecture_id text not null references public.lectures(id) on delete cascade,
-  unique (participant_id, day, time_slot)
-);
-
-create table if not exists public.timetable_days (
-  id text primary key,
-  day text not null unique check (day in ('Day1', 'Day2', 'Day3')),
-  title text not null,
-  date text not null,
-  sort_order int not null
+  created_at timestamptz not null default now(),
+  unique (participant_id, day, slot_order)
 );
 
 create table if not exists public.timetable_rows (
-  id text primary key,
-  timetable_day_id text not null references public.timetable_days(id) on delete cascade,
+  id uuid primary key default gen_random_uuid(),
+  day text not null check (day in ('Day1', 'Day2', 'Day3')),
+  sort_order int4 not null,
   time text not null,
   label text not null,
   title text not null,
-  place text not null,
-  sort_order int not null
+  speaker text,
+  position text,
+  location text not null,
+  is_break boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
+
+create unique index if not exists timetable_rows_day_sort_order_idx
+  on public.timetable_rows (day, sort_order);

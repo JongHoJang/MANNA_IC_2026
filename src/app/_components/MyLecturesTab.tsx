@@ -5,7 +5,8 @@ import type { Application, DayKey, Lecture, Participant, TimeSlot } from '@/type
 import { DAY_LABELS, DAY_ORDER } from '@/utils/tickets';
 import { formatLectureLocation } from '@/utils/lectures';
 import { splitLectureHeading } from './home-helpers';
-import { ClockMark, PencilMark, PersonMark, PinMark } from './home-marks';
+import { PencilMark, PersonMark, PinMark } from './home-marks';
+import { ModalPortal } from './ModalPortal';
 
 const sessionSlots = [
   { slot: '1타임', title: '첫번째 선택세션' },
@@ -187,8 +188,7 @@ export function MyLecturesTab({
             >
               <div className="flex items-start justify-between gap-3 px-4 py-4">
                 <button type="button" onClick={() => onSelectSlot(slot)} className="min-w-0 flex-1 text-left">
-                  <div className="mb-4 flex items-center gap-2 text-xs font-medium text-[color:var(--muted)]">
-                    <ClockMark />
+                  <div className="mb-4 text-xs font-medium text-[color:var(--muted)]">
                     <span>{title}</span>
                   </div>
                   {displayedLecture ? (
@@ -204,7 +204,10 @@ export function MyLecturesTab({
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-[color:var(--muted)]">
                         <span className="inline-flex items-center gap-1.5">
                           <PersonMark />
-                          <span>{displayedLecture.speaker}</span>
+                          <span>
+                            {displayedLecture.speaker}
+                            {displayedLecture.position && displayedLecture.position !== '비었음' ? ` · ${displayedLecture.position}` : ''}
+                          </span>
                         </span>
                         <span className="text-[color:var(--muted)]">·</span>
                         <span className="inline-flex items-center gap-1.5">
@@ -298,7 +301,10 @@ export function MyLecturesTab({
                               {itemHeading.title}
                             </h4>
                             <p className="mt-1 text-xs text-[color:var(--muted)]">
-                              {item.speaker} · {formatLectureLocation(item, lectureApplicationCountMap[item.id] ?? 0)}
+                              {item.speaker}
+                              {item.position && item.position !== '비었음' ? ` · ${item.position}` : ''}
+                              {' · '}
+                              {formatLectureLocation(item, lectureApplicationCountMap[item.id] ?? 0)}
                             </p>
                             {itemIsSelectedElsewhere ? (
                               <span className="mt-2 inline-flex rounded-full bg-[#e8e8e8] px-2.5 py-1 text-[11px] font-medium text-[color:var(--muted)]">
@@ -322,8 +328,9 @@ export function MyLecturesTab({
       </div>
 
       {confirmTarget ? (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 px-4 pb-4 pt-10 backdrop-blur-[2px] sm:items-center">
-          <div className="w-full max-w-[420px] rounded-[28px] border-[2px] border-[color:var(--ink)] bg-[color:var(--panel)] p-5 shadow-[6px_6px_0_rgba(36,27,22,0.2)]">
+        <ModalPortal>
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 px-4 pb-4 pt-10 backdrop-blur-[2px] sm:items-center">
+            <div className="w-full max-w-[420px] rounded-[28px] border-[2px] border-[color:var(--ink)] bg-[color:var(--panel)] p-5 shadow-[6px_6px_0_rgba(36,27,22,0.2)]">
             <p className="font-display text-xs uppercase tracking-[0.35em] text-[color:var(--muted)]">
               {isConfirmingChange ? '변경 확인' : '선택 확인'}
             </p>
@@ -344,7 +351,10 @@ export function MyLecturesTab({
                         {splitLectureHeading(currentLecture.title).title}
                       </p>
                       <p className="mt-2 text-xs text-[color:var(--muted)]">
-                        {currentLecture.speaker} · {formatLectureLocation(currentLecture, lectureApplicationCountMap[currentLecture.id] ?? 0)}
+                        {currentLecture.speaker}
+                        {currentLecture.position && currentLecture.position !== '비었음' ? ` · ${currentLecture.position}` : ''}
+                        {' · '}
+                        {formatLectureLocation(currentLecture, lectureApplicationCountMap[currentLecture.id] ?? 0)}
                       </p>
                     </div>
                   ) : (
@@ -363,7 +373,10 @@ export function MyLecturesTab({
                         {splitLectureHeading(confirmLecture.title).title}
                       </p>
                       <p className="mt-2 text-xs text-[color:var(--muted)]">
-                        {confirmLecture.speaker} · {formatLectureLocation(confirmLecture, lectureApplicationCountMap[confirmLecture.id] ?? 0)}
+                        {confirmLecture.speaker}
+                        {confirmLecture.position && confirmLecture.position !== '비었음' ? ` · ${confirmLecture.position}` : ''}
+                        {' · '}
+                        {formatLectureLocation(confirmLecture, lectureApplicationCountMap[confirmLecture.id] ?? 0)}
                       </p>
                     </div>
                   ) : null}
@@ -380,54 +393,60 @@ export function MyLecturesTab({
                     {splitLectureHeading(confirmLecture.title).title}
                   </p>
                   <p className="mt-2 text-xs text-[color:var(--muted)]">
-                    {confirmLecture.speaker} · {formatLectureLocation(confirmLecture, lectureApplicationCountMap[confirmLecture.id] ?? 0)}
+                    {confirmLecture.speaker}
+                    {confirmLecture.position && confirmLecture.position !== '비었음' ? ` · ${confirmLecture.position}` : ''}
+                    {' · '}
+                    {formatLectureLocation(confirmLecture, lectureApplicationCountMap[confirmLecture.id] ?? 0)}
                   </p>
                 </div>
               </div>
             ) : null}
 
-            <div className="mt-5 flex gap-2">
-              <button
-                type="button"
-                onClick={closeConfirmModal}
-                className="flex-1 rounded-[2px] border-2 border-[color:var(--ink)] bg-white px-4 py-3 text-sm font-semibold text-[color:var(--muted)]"
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  void commitPendingLecture(confirmTarget.slot, confirmTarget.lectureId);
-                }}
-                className="flex-1 rounded-[2px] bg-[color:var(--ink)] px-4 py-3 text-sm font-semibold text-[color:var(--paper)]"
-              >
-                {isConfirmingChange ? '변경하기' : '결정하기'}
-              </button>
+              <div className="mt-5 flex gap-2">
+                <button
+                  type="button"
+                  onClick={closeConfirmModal}
+                  className="flex-1 rounded-[2px] border-2 border-[color:var(--ink)] bg-white px-4 py-3 text-sm font-semibold text-[color:var(--muted)]"
+                >
+                  취소
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void commitPendingLecture(confirmTarget.slot, confirmTarget.lectureId);
+                  }}
+                  className="flex-1 rounded-[2px] bg-[color:var(--ink)] px-4 py-3 text-sm font-semibold text-[color:var(--paper)]"
+                >
+                  {isConfirmingChange ? '변경하기' : '결정하기'}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       ) : null}
 
       {purchaseNoticeDay ? (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 px-4 pb-4 pt-10 backdrop-blur-[2px] sm:items-center">
-          <div className="w-full max-w-[420px] rounded-[28px] border-[2px] border-[color:var(--ink)] bg-[color:var(--panel)] p-5 shadow-[6px_6px_0_rgba(36,27,22,0.2)]">
-            <p className="font-display text-xs uppercase tracking-[0.35em] text-[color:var(--muted)]">티켓 안내</p>
-            <h3 className="mt-3 text-xl font-semibold leading-tight">{DAY_LABELS[purchaseNoticeDay]} 티켓을 구매해주세요.</h3>
-            <p className="mt-3 text-sm leading-6 text-[color:var(--muted)]">
-              구매한 날짜만 선택세션 강의를 신청하거나 변경할 수 있습니다.
-            </p>
+        <ModalPortal>
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 px-4 pb-4 pt-10 backdrop-blur-[2px] sm:items-center">
+            <div className="w-full max-w-[420px] rounded-[28px] border-[2px] border-[color:var(--ink)] bg-[color:var(--panel)] p-5 shadow-[6px_6px_0_rgba(36,27,22,0.2)]">
+              <p className="font-display text-xs uppercase tracking-[0.35em] text-[color:var(--muted)]">티켓 안내</p>
+              <h3 className="mt-3 text-xl font-semibold leading-tight">{DAY_LABELS[purchaseNoticeDay]} 티켓을 구매해주세요.</h3>
+              <p className="mt-3 text-sm leading-6 text-[color:var(--muted)]">
+                구매한 날짜만 선택세션 강의를 신청하거나 변경할 수 있습니다.
+              </p>
 
-            <div className="mt-5">
-              <button
-                type="button"
-                onClick={() => setPurchaseNoticeDay(null)}
-                className="w-full rounded-[2px] bg-[color:var(--ink)] px-4 py-3 text-sm font-semibold text-[color:var(--paper)]"
-              >
-                확인
-              </button>
+              <div className="mt-5">
+                <button
+                  type="button"
+                  onClick={() => setPurchaseNoticeDay(null)}
+                  className="w-full rounded-[2px] bg-[color:var(--ink)] px-4 py-3 text-sm font-semibold text-[color:var(--paper)]"
+                >
+                  확인
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       ) : null}
     </div>
   );

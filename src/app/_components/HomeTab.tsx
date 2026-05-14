@@ -1,80 +1,94 @@
+'use client';
+
+import Image from 'next/image';
+import { useRef, useState } from 'react';
 import type { Participant } from '@/types';
 
-function MiniInfo({ title, value }: { title: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-[color:var(--line)] bg-white px-4 py-4">
-      <p className="text-xs uppercase tracking-[0.2em] text-[color:var(--muted)]">{title}</p>
-      <p className="mt-2 text-sm font-semibold leading-6">{value}</p>
-    </div>
-  );
-}
+const CAROUSEL_IMAGES = [
+  '/home-carousel/main_poster_1.jpg',
+  '/home-carousel/main_poster_2.jpg',
+  '/home-carousel/main_poster_3.jpg',
+  '/home-carousel/main_poster_4.jpg',
+] as const;
 
 export function HomeTab({ currentParticipant }: { currentParticipant: Participant }) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const slideRefs = useRef<Array<HTMLDivElement | null>>([]);
+
+  function scrollToSlide(index: number) {
+    slideRefs.current[index]?.scrollIntoView({
+      behavior: 'smooth',
+      inline: 'center',
+      block: 'nearest',
+    });
+    setActiveIndex(index);
+  }
+
   return (
-    <div className="space-y-4">
-      <section className="space-y-4 px-1 pt-1">
-        <h2 className="max-w-[19ch] text-[2rem] font-semibold leading-[1.06] tracking-[-0.05em] text-[color:var(--ink)] sm:text-[2.15rem]">
-          안녕하세요 {currentParticipant.name} {currentParticipant.position}님,
-          <br />
-          만나 IC 2026에
+    <div className="space-y-6 px-1 pb-4 pt-3">
+      <section className="px-3 text-center">
+        <p className="font-display text-[1.08rem] font-semibold tracking-[0.005em] text-[color:var(--ink)]/62">
+          {currentParticipant.name} {currentParticipant.position}님,
+        </p>
+        <h2 className="mt-3 text-[2rem] font-black leading-[1.2] tracking-[-0.065em] text-[color:var(--ink)] sm:text-[2.25rem]">
+          만나IC 2026 컨퍼런스에
           <br />
           오신것을 환영합니다.
         </h2>
       </section>
 
-      <section className="overflow-hidden rounded-[28px] border border-[color:var(--line)] bg-[linear-gradient(180deg,rgba(238,202,126,0.64),rgba(255,250,240,0.98))] p-5 paper-border">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <p className="font-display text-xs uppercase tracking-[0.35em] text-[color:var(--ink)]/70">manna ic</p>
-            <h2 className="mt-3 text-[3rem] font-semibold leading-[0.88] tracking-[-0.07em] text-[color:var(--ink)] sm:text-[3.35rem]">
-              만나IC
-              <br />
-              2026
-              <br />
-              컨퍼런스
-            </h2>
-            <p className="mt-4 max-w-[22rem] text-sm leading-6 text-[color:var(--ink)]/80">
-              내일의 소망으로 향하는 오늘의 교회 이야기
-            </p>
-          </div>
-          <div className="shrink-0 rounded-[18px] border border-[color:var(--ink)]/20 bg-[color:var(--paper)] px-3 py-3 text-center shadow-[0_10px_20px_rgba(36,27,22,0.08)]">
-            <div className="grid grid-cols-5 gap-0.5">
-              {Array.from({ length: 25 }).map((_, index) => (
-                <span
-                  key={index}
-                  className={['h-1.5 w-1.5', index % 2 === 0 ? 'bg-[color:var(--ink)]' : 'bg-transparent'].join(' ')}
-                />
-              ))}
+      <section className="space-y-4">
+        <div
+          className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          onScroll={(event) => {
+            const container = event.currentTarget;
+            const nextIndex = Math.round(container.scrollLeft / container.clientWidth);
+            if (nextIndex !== activeIndex) {
+              setActiveIndex(Math.max(0, Math.min(CAROUSEL_IMAGES.length - 1, nextIndex)));
+            }
+          }}
+        >
+          <div className="w-[1px] shrink-0" />
+          {CAROUSEL_IMAGES.map((src, index) => (
+            <div
+              key={src}
+              ref={(node) => {
+                slideRefs.current[index] = node;
+              }}
+              className="w-[calc(100%-1rem)] shrink-0 snap-center"
+            >
+              <article className="overflow-hidden rounded-[2px] border-[2px] border-[color:var(--ink)] bg-[color:var(--paper)] shadow-[4px_4px_0_rgba(36,27,22,0.14)]">
+                <div className="relative aspect-[4/5.65] w-full bg-white">
+                  <Image
+                    src={src}
+                    alt={`MANNA IC 2026 홈 캐러셀 이미지 ${index + 1}`}
+                    fill
+                    sizes="(max-width: 460px) 92vw, 420px"
+                    className="object-cover object-top"
+                    priority={index === 0}
+                  />
+                </div>
+              </article>
             </div>
-            <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--ink)]/70">
-              포스터 QR
-            </p>
-          </div>
+          ))}
+          <div className="w-[1px] shrink-0" />
         </div>
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-2">
-          <div className="rounded-[22px] border border-[color:var(--ink)]/14 bg-[color:var(--paper)] px-4 py-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[color:var(--muted)]">일시</p>
-            <p className="mt-2 text-base font-semibold text-[color:var(--ink)]">2026.06.23 - 25</p>
-          </div>
-          <div className="rounded-[22px] border border-[color:var(--ink)]/14 bg-[color:var(--paper)] px-4 py-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[color:var(--muted)]">장소</p>
-            <p className="mt-2 text-base font-semibold text-[color:var(--ink)]">만나교회</p>
-          </div>
-        </div>
-
-        <div className="mt-4 rounded-[24px] border border-dashed border-[color:var(--ink)]/18 bg-white/35 p-4">
-          <p className="text-sm font-medium text-[color:var(--ink)]">
-            참가신청 <span className="font-semibold">5월 중순 오픈 예정</span>
-          </p>
-          <p className="mt-2 text-xs text-[color:var(--muted)]">선착순 마감</p>
+        <div className="flex items-center justify-center gap-2">
+          {CAROUSEL_IMAGES.map((src, index) => (
+            <button
+              key={src}
+              type="button"
+              onClick={() => scrollToSlide(index)}
+              aria-label={`슬라이드 ${index + 1} 보기`}
+              className={[
+                'h-2.5 rounded-full transition',
+                activeIndex === index ? 'w-7 bg-[color:var(--ink)]' : 'w-2.5 bg-white',
+              ].join(' ')}
+            />
+          ))}
         </div>
       </section>
-
-      <div className="grid gap-3 sm:grid-cols-2">
-        <MiniInfo title="행사명" value="만나IC 2026 컨퍼런스" />
-        <MiniInfo title="부제목" value="내일의 소망으로 향하는 오늘의 교회 이야기" />
-      </div>
     </div>
   );
 }

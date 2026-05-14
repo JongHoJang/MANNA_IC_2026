@@ -1,4 +1,6 @@
 .next
+.next-dev
+.next.bak-*
 node_modules
 out
 dist
@@ -9,6 +11,7 @@ coverage
 .env.test.local
 .env.production.local
 *.log
+*:Zone.Identifier
 .DS_Store
 .idea
 tsconfig.tsbuildinfo

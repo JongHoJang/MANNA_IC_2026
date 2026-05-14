@@ -6,6 +6,7 @@ import { formatLectureLocation } from '@/utils/lectures';
 import { DAY_LABELS } from '@/utils/tickets';
 import { isBreakSession, isTimeInsideRange } from './home-helpers';
 import { PersonMark, PinMiniMark } from './home-marks';
+import { ModalPortal } from './ModalPortal';
 
 export function TimetableTab({
   activeDay,
@@ -45,7 +46,7 @@ export function TimetableTab({
 
   return (
     <div className="space-y-5">
-      <section className="relative overflow-hidden rounded-[2px] border-[2px] border-[color:var(--ink)] bg-[linear-gradient(180deg,rgba(255,234,166,0.92),rgba(242,200,98,0.92))] px-4 py-5 shadow-[4px_4px_0_rgba(36,27,22,0.18)]">
+      <section className="relative overflow-hidden rounded-[2px] border-[2px] border-[color:var(--ink)] bg-[#f3efe8] px-4 py-5 shadow-[4px_4px_0_rgba(36,27,22,0.18)]">
         <div className="relative">
           <h2 className="max-w-[10ch] text-[2.35rem] font-semibold leading-[0.92] tracking-[-0.07em] text-[color:var(--ink)]">
             <span className="block text-[1.95rem] leading-[0.96]">{activeDay.title.split(' ')[0]}</span>
@@ -88,7 +89,7 @@ export function TimetableTab({
             const isBreak = isBreakSession(row.label, row.title);
             const titleText = row.title.trim();
             const labelText = row.label.trim();
-            const selectedSlot = resolveSelectionSlot(labelText);
+            const selectedSlot = resolveSelectionSlot(labelText, titleText, row.place);
             const selectedApplication = selectedSlot
               ? timetableApplications.find((application) => application.timeSlot === selectedSlot)
               : undefined;
@@ -217,7 +218,7 @@ export function TimetableTab({
                       >
                         {labelText}
                       </p>
-                      {titleText ? (
+                      {titleText && !selectedSlot ? (
                         <p
                           className={[
                             'whitespace-pre-line text-[1.22rem] font-semibold leading-[1.1] tracking-[-0.05em]',
@@ -246,11 +247,16 @@ export function TimetableTab({
                               {selectedApplication.lecture.title}
                             </p>
                             <p className="mt-1 text-[11px] text-[color:var(--ink)]/62">
-                              {selectedApplication.lecture.speaker} · {formatLectureLocation(selectedApplication.lecture, lectureApplicationCountMap[selectedApplication.lecture.id] ?? 0)}
+                              {selectedApplication.lecture.speaker}
+                              {selectedApplication.lecture.position && selectedApplication.lecture.position !== '비었음'
+                                ? ` · ${selectedApplication.lecture.position}`
+                                : ''}
+                              {' · '}
+                              {formatLectureLocation(selectedApplication.lecture, lectureApplicationCountMap[selectedApplication.lecture.id] ?? 0)}
                             </p>
                           </>
                         ) : (
-                          <p className="mt-1 text-sm font-semibold text-[color:var(--ink)]/62">아직 선택한 강의가 없습니다.</p>
+                          <p className="mt-1 text-sm font-semibold text-[color:var(--ink)]/62">강의를 선택해주세요.</p>
                         )}
                         <button
                           type="button"
@@ -264,7 +270,7 @@ export function TimetableTab({
                           }}
                           className="mt-3 inline-flex items-center text-sm font-semibold text-[color:var(--ink)] underline decoration-[color:var(--ink)]/35 underline-offset-[5px] transition hover:text-[color:var(--ink)]/72"
                         >
-                          <span>{selectedApplication ? '변경하러가기 >' : '선택하러 가기 >'}</span>
+                          <span>{selectedApplication ? '변경하러가기 >' : '강의 선택하러 가기 >'}</span>
                         </button>
                       </div>
                     ) : null}
@@ -285,15 +291,17 @@ export function TimetableTab({
                       ) : (
                         <span />
                       )}
-                      <p
-                        className={[
-                          'inline-flex shrink-0 items-center justify-end gap-1.5 text-[11px] font-medium tracking-[0.08em]',
-                          isCurrent ? 'text-[color:var(--ink)]/42' : 'text-[color:var(--ink)]/68',
-                        ].join(' ')}
-                      >
-                        <PinMiniMark />
-                        <span>{row.place}</span>
-                      </p>
+                      {selectedSlot ? <span /> : (
+                        <p
+                          className={[
+                            'inline-flex shrink-0 items-center justify-end gap-1.5 text-[11px] font-medium tracking-[0.08em]',
+                            isCurrent ? 'text-[color:var(--ink)]/42' : 'text-[color:var(--ink)]/68',
+                          ].join(' ')}
+                        >
+                          <PinMiniMark />
+                          <span>{row.place}</span>
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -304,37 +312,63 @@ export function TimetableTab({
       </section>
 
       {purchaseNoticeDay ? (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 px-4 pb-4 pt-10 backdrop-blur-[2px] sm:items-center">
-          <div className="w-full max-w-[420px] rounded-[28px] border-[2px] border-[color:var(--ink)] bg-[color:var(--panel)] p-5 shadow-[6px_6px_0_rgba(36,27,22,0.2)]">
-            <p className="font-display text-xs uppercase tracking-[0.35em] text-[color:var(--muted)]">티켓 안내</p>
-            <h3 className="mt-3 text-xl font-semibold leading-tight">{DAY_LABELS[purchaseNoticeDay]} 티켓을 구매해주세요.</h3>
-            <p className="mt-3 text-sm leading-6 text-[color:var(--muted)]">
-              구매한 날짜만 선택세션 강의를 신청하거나 변경할 수 있습니다.
-            </p>
+        <ModalPortal>
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 px-4 pb-4 pt-10 backdrop-blur-[2px] sm:items-center">
+            <div className="w-full max-w-[420px] rounded-[28px] border-[2px] border-[color:var(--ink)] bg-[color:var(--panel)] p-5 shadow-[6px_6px_0_rgba(36,27,22,0.2)]">
+              <p className="font-display text-xs uppercase tracking-[0.35em] text-[color:var(--muted)]">티켓 안내</p>
+              <h3 className="mt-3 text-xl font-semibold leading-tight">{DAY_LABELS[purchaseNoticeDay]} 티켓을 구매해주세요.</h3>
+              <p className="mt-3 text-sm leading-6 text-[color:var(--muted)]">
+                구매한 날짜만 선택세션 강의를 신청하거나 변경할 수 있습니다.
+              </p>
 
-            <div className="mt-5">
-              <button
-                type="button"
-                onClick={() => setPurchaseNoticeDay(null)}
-                className="w-full rounded-[2px] bg-[color:var(--ink)] px-4 py-3 text-sm font-semibold text-[color:var(--paper)]"
-              >
-                확인
-              </button>
+              <div className="mt-5">
+                <button
+                  type="button"
+                  onClick={() => setPurchaseNoticeDay(null)}
+                  className="w-full rounded-[2px] bg-[color:var(--ink)] px-4 py-3 text-sm font-semibold text-[color:var(--paper)]"
+                >
+                  확인
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       ) : null}
     </div>
   );
 }
 
-function resolveSelectionSlot(label: string): TimeSlot | null {
-  if (label === '선택세션1' || label === '첫번째 선택세션') {
+function resolveSelectionSlot(label: string, title?: string, place?: string): TimeSlot | null {
+  const normalizedLabel = label.trim();
+  const normalizedTitle = title?.trim() ?? '';
+  const normalizedPlace = place?.trim() ?? '';
+
+  if (
+    normalizedLabel === '선택세션1' ||
+    normalizedLabel === '첫번째 선택세션' ||
+    (normalizedLabel.includes('선택세션') && normalizedLabel.includes('1'))
+  ) {
     return '1타임';
   }
 
-  if (label === '선택세션2' || label === '두번째 선택세션') {
+  if (
+    normalizedLabel === '선택세션2' ||
+    normalizedLabel === '두번째 선택세션' ||
+    (normalizedLabel.includes('선택세션') && normalizedLabel.includes('2'))
+  ) {
     return '2타임';
+  }
+
+  if (normalizedLabel.includes('첫번째 선택세션')) {
+    return '1타임';
+  }
+
+  if (normalizedLabel.includes('두번째 선택세션')) {
+    return '2타임';
+  }
+
+  if (normalizedTitle === '참가신청 시 선택한 세션' || normalizedPlace === '각 선택세션 장소') {
+    return normalizedLabel.includes('2') || normalizedLabel.includes('두번째') ? '2타임' : '1타임';
   }
 
   return null;

@@ -11,7 +11,7 @@ update public.lectures set date = '2026-06-25' where day = 'Day3';
 -- 3) Timetable rows
 delete from public.timetable_rows;
 
-insert into public.timetable_rows (day, sort_order, time, label, title, speaker, position, place, is_break) values
+insert into public.timetable_rows (day, sort_order, time, label, title, speaker, position, location, is_break) values
   ('Day1', 1, '09:00 - 10:00', '접수', 'QR코드 준비', null, null, '1층 안내데스크', false),
   ('Day1', 2, '10:00 - 11:00', '메인세션1', '다시, 목회철학', '김병삼', '담임 목사', '2층 시온성전', false),
   ('Day1', 3, '11:10 - 12:00', '메인세션2', '건축가 유현준이 그리는 공간', '유현준', '교수', '2층 시온성전', false),

@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
@@ -16,6 +17,8 @@ import { HomeTab } from './_components/HomeTab';
 import { MyLecturesTab } from './_components/MyLecturesTab';
 import { TimetableTab } from './_components/TimetableTab';
 import { GuideTab } from './_components/GuideTab';
+
+const INSTAGRAM_URL = 'https://www.instagram.com/manna_ic?igsh=MThpZm1lNzM1MXNuaw==';
 
 export default function HomePage() {
   const router = useRouter();
@@ -41,8 +44,7 @@ export default function HomePage() {
   const [activeTimetableDay, setActiveTimetableDay] = useState<DayKey>('Day2');
   const [activeLectureSlot, setActiveLectureSlot] = useState<TimeSlot>('1타임');
   const [currentTime, setCurrentTime] = useState(() => formatCurrentTime(new Date()));
-  const [activeTab, setActiveTab] = useState<AppTab>('timetable');
-  const didAutoOpenTimetable = useRef(false);
+  const [activeTab, setActiveTab] = useState<AppTab>('home');
   const contentScrollRef = useRef<HTMLDivElement | null>(null);
   const lectureLookup = useMemo(
     () => new Map(lectures.map((lecture) => [lecture.id, lecture] as const)) as Map<string, Lecture>,
@@ -86,7 +88,7 @@ export default function HomePage() {
     [currentParticipant],
   );
   const selectedDay = currentParticipant
-    ? selectedDayByParticipantId[currentParticipant.id] ?? purchasedDays[0] ?? 'Day1'
+    ? (selectedDayByParticipantId[currentParticipant.id] ?? purchasedDays[0] ?? 'Day1')
     : activeDay;
   const accessSummary = currentParticipant ? getPurchaseTicketSummary(currentParticipant.ticketText) : '';
   const activeTimetable = timetableDays.find((day) => day.day === activeTimetableDay) ?? timetableDays[0];
@@ -96,7 +98,9 @@ export default function HomePage() {
     }
 
     return applications
-      .filter((application) => application.participantId === currentParticipant.id && application.day === activeTimetableDay)
+      .filter(
+        (application) => application.participantId === currentParticipant.id && application.day === activeTimetableDay,
+      )
       .map((application) => ({
         ...application,
         lecture: lectureLookup.get(application.lectureId),
@@ -123,17 +127,6 @@ export default function HomePage() {
   }, [currentParticipant, selectedDay]);
 
   useEffect(() => {
-    if (currentParticipant && !didAutoOpenTimetable.current) {
-      didAutoOpenTimetable.current = true;
-      setActiveTab('my-lectures');
-    }
-
-    if (!currentParticipant) {
-      didAutoOpenTimetable.current = false;
-    }
-  }, [currentParticipant]);
-
-  useEffect(() => {
     contentScrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
   }, [activeTab]);
 
@@ -154,8 +147,7 @@ export default function HomePage() {
 
     setName('');
     setPhone('');
-    setActiveTab('my-lectures');
-    didAutoOpenTimetable.current = true;
+    setActiveTab('home');
     setMessage(null);
   }
 
@@ -223,34 +215,35 @@ export default function HomePage() {
     <main className="mx-auto h-[100dvh] w-full max-w-[460px] bg-[color:var(--accent)] px-4 py-4">
       <section className="flex h-full min-h-0 flex-col bg-[color:var(--accent)]">
         <header className="flex items-center justify-between px-1 py-2">
-          <button type="button" className="flex h-10 w-10 items-center justify-center" aria-label="메뉴">
-            <span className="relative block h-4 w-5">
-              <span className="absolute left-0 top-0 h-0.5 w-5 rounded-full bg-[color:var(--ink)]" />
-              <span className="absolute left-0 top-1.5 h-0.5 w-5 rounded-full bg-[color:var(--ink)]" />
-              <span className="absolute left-0 top-3 h-0.5 w-5 rounded-full bg-[color:var(--ink)]" />
-            </span>
-          </button>
+          <a
+            href={INSTAGRAM_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="flex h-10 w-10 items-center justify-center text-[color:var(--ink)]"
+            aria-label="인스타그램 바로가기"
+          >
+            <Image src="/icons/instagram_icon.svg" alt="" width={22} height={22} className="h-[22px] w-[22px]" aria-hidden="true" />
+          </a>
 
-          <p className="font-display text-lg font-semibold tracking-[0.08em] text-[color:var(--ink)]">MANNAIC 2026</p>
+          <p className="font-display text-[1.02rem] font-semibold tracking-[0.14em] text-[color:var(--ink)]">manna-ic 2026</p>
 
           <button
             type="button"
             onClick={() => {
               logout();
               setMessage(null);
-              setActiveTab('my-lectures');
-              didAutoOpenTimetable.current = false;
+              setActiveTab('home');
             }}
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-[color:var(--ink)]/40 bg-[color:var(--accent)] text-[color:var(--ink)]"
+            className="flex h-10 w-10 items-center justify-center text-[color:var(--ink)]"
             aria-label="로그아웃"
           >
-            <span className="block h-4 w-4 rounded-full border-2 border-[color:var(--ink)]" />
+            <Image src="/icons/logout_icon_2.svg" alt="" width={22} height={22} className="h-[22px] w-[22px]" aria-hidden="true" />
           </button>
         </header>
 
         <div
           ref={contentScrollRef}
-          className="flex-1 min-h-0 space-y-6 overflow-y-auto px-1 py-3 pb-36"
+          className="flex-1 min-h-0 space-y-6 overflow-y-auto px-1 py-3 pb-28"
           style={{ scrollbarGutter: 'stable' }}
         >
           {message ? <Notice>{message}</Notice> : null}

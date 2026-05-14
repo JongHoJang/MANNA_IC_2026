@@ -1,45 +1,58 @@
- 'use client';
+'use client';
 
 import { useState } from 'react';
+import { ModalPortal } from './ModalPortal';
 
-const notices = [
+type NoticeItem = {
+  title: string;
+  body: string;
+  actionLabel?: string;
+  actionHref?: string;
+  actionType?: 'modal' | 'link';
+};
+
+const notices: NoticeItem[] = [
   {
-    title: '셔틀 버스 운행 안내',
-    body: '주요 역에서 행사장까지 왕복 셔틀버스를 운행합니다. 시간표를 미리 확인하고 출발 10분 전까지 탑승 위치에 도착해 주세요.',
-    icon: ShuttleIcon,
+    title: '1. 야탑역에서 교회 셔틀버스 이용',
+    body: '야탑역 4번 출구에서 나온 방향으로 횡단보도를 건너면 도보 1분 거리에 공항버스 승강장 안내배너가 보이는 곳에서 셔틀버스를 타실 수 있습니다.',
     actionLabel: '셔틀 시간표 확인',
+    actionType: 'modal',
   },
   {
-    title: '주차 및 교통 안내',
-    body: '행사장 내 주차 공간이 협소하오니 가급적 대중교통을 이용해 주세요. 자차 이용 시 임시 주차 구역과 출차 동선을 현장 안내에 따라 이용합니다.',
-    icon: ParkingIcon,
-    actionLabel: '주차 안내 확인',
+    title: '2. 야탑역에서 도보 이용',
+    body: '야탑역 4번 출구에서 도보 13분 (770m)에 위치해있습니다.',
   },
   {
-    title: '외부 제휴 숙소 안내',
-    body: '숙박권을 이용하는 분들은 제휴 숙소 체크인 시간과 셔틀 연계 노선을 함께 확인해 주세요. 객실 배정 관련 문의는 운영 채널에서 안내합니다.',
-    icon: StayIcon,
-    actionLabel: '숙소 정보 확인',
+    title: '3. 자차 이용',
+    body: '만나교회 주차공간이 협소하여 주변 대형 주차장을 추천드립니다. (탄천종합운동장 주차장, 성남시청 주차장)',
+  },
+  {
+    title: '4. 외부 제휴 숙소 안내',
+    body: '호텔 스카이파크 센트럴 서울 판교에서 할인가로 이용하실 수 있습니다.',
+    actionLabel: '호텔 바로가기',
+    actionHref: 'https://naver.me/5YFcmbeg',
+    actionType: 'link',
   },
 ];
 
 const faqs = [
   {
-    question: '강의 신청은 현장에서 변경할 수 있나요?',
-    answer: '잔여 좌석이 있는 경우에만 앱에서 직접 변경할 수 있으며, 마감된 세션은 운영팀 안내에 따라 대기 등록만 가능합니다.',
+    question: '현장 접수가 가능한가요?',
+    answer: '온라인 사전 신청으로 선착순 마감 예정입니다.',
   },
   {
-    question: '식사 장소와 시간은 어디서 확인하나요?',
-    answer: '타임테이블의 BREAK TIME 구간과 현장 표지판에서 식사 위치와 운영 시간을 함께 안내합니다.',
+    question: '온라인 참석도 가능한가요? 온라인 중계도 하나요?',
+    answer: '오프라인 현장에서만 진행합니다.',
   },
   {
-    question: '숙소 체크인 전에 짐을 맡길 수 있나요?',
-    answer: '등록 데스크 옆 운영 부스에서 간단한 짐 보관 안내를 받을 수 있습니다. 귀중품은 개별 보관이 원칙입니다.',
+    question: '숙소가 지원되나요?',
+    answer: '숙소 지원은 되지 않습니다. 다만 만나IC 컨퍼런스에서 제휴한 호텔 스카이파크 센트럴 서울판교에서 할인가로 제공합니다.',
   },
 ];
 
 export function GuideTab() {
   const [openQuestion, setOpenQuestion] = useState<string | null>(null);
+  const [showShuttleModal, setShowShuttleModal] = useState(false);
 
   return (
     <div className="space-y-6 pb-4">
@@ -50,35 +63,35 @@ export function GuideTab() {
         </p>
       </section>
 
-      <section className="relative rounded-[2px] border-[2px] border-[color:var(--ink)] bg-[#f7f4f0] px-6 pb-7 pt-14 shadow-[3px_3px_0_rgba(36,27,22,0.12)]">
-        <div className="absolute left-[-4px] top-[-14px] flex h-14 w-14 -rotate-[8deg] items-center justify-center rounded-[2px] border-[2px] border-[color:var(--ink)] bg-[color:var(--accent)] shadow-[2px_2px_0_rgba(36,27,22,0.1)]">
-          <MegaphoneIcon />
-        </div>
-
-        <div className="pl-2">
-          <h3 className="text-[2.9rem] font-black leading-none tracking-[-0.08em] text-[color:var(--ink)]">공지사항</h3>
-        </div>
-
-        <div className="mt-10 space-y-10">
+      <section className="rounded-[2px] border-[2px] border-[color:var(--ink)] bg-[#f7f4f0] px-6 pb-7 pt-8 shadow-[3px_3px_0_rgba(36,27,22,0.12)]">
+        <div className="space-y-8">
           {notices.map((notice) => {
-            const Icon = notice.icon;
-
             return (
-              <article key={notice.title} className="flex gap-4">
-                <div className="pt-1 text-[#8a6800]">
-                  <Icon />
-                </div>
+              <article key={notice.title}>
                 <div>
-                  <h4 className="text-[1.15rem] font-extrabold leading-8 tracking-[-0.04em] text-[color:var(--ink)]">
+                  <h4 className="text-[1.1rem] font-extrabold leading-7 tracking-[-0.04em] text-[color:var(--ink)]">
                     {notice.title}
                   </h4>
-                  <p className="mt-3 text-[0.98rem] leading-8 text-[color:var(--ink)]/74">{notice.body}</p>
-                  <button
-                    type="button"
-                    className="mt-4 inline-flex h-11 items-center justify-center rounded-[2px] border-[2px] border-[color:var(--ink)] bg-[color:var(--paper)] px-4 text-sm font-bold text-[color:var(--ink)] shadow-[2px_2px_0_rgba(36,27,22,0.08)]"
-                  >
-                    {notice.actionLabel}
-                  </button>
+                  <p className="mt-2 text-[0.96rem] leading-7 text-[color:var(--ink)]/74">{notice.body}</p>
+                  {notice.actionType === 'modal' ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowShuttleModal(true)}
+                      className="mt-3 inline-flex h-10 items-center justify-center rounded-[2px] border-[2px] border-[color:var(--ink)] bg-[color:var(--paper)] px-4 text-sm font-bold text-[color:var(--ink)] shadow-[2px_2px_0_rgba(36,27,22,0.08)]"
+                    >
+                      {notice.actionLabel}
+                    </button>
+                  ) : null}
+                  {notice.actionType === 'link' && notice.actionHref ? (
+                    <a
+                      href={notice.actionHref}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-3 inline-flex h-10 items-center justify-center rounded-[2px] border-[2px] border-[color:var(--ink)] bg-[color:var(--paper)] px-4 text-sm font-bold text-[color:var(--ink)] shadow-[2px_2px_0_rgba(36,27,22,0.08)]"
+                    >
+                      {notice.actionLabel}
+                    </a>
+                  ) : null}
                 </div>
               </article>
             );
@@ -88,7 +101,7 @@ export function GuideTab() {
 
       <section className="space-y-3">
         <div className="px-1">
-          <h3 className="text-[1.7rem] font-black tracking-[-0.05em] text-[color:var(--ink)]">자주 묻는 질문</h3>
+          <h3 className="text-[1.7rem] font-black tracking-[-0.05em] text-[color:var(--ink)]">FAQ / 자주 묻는 질문</h3>
         </div>
 
         {faqs.map((item, index) => (
@@ -144,6 +157,32 @@ export function GuideTab() {
           현장 문의 데스크: 1층 안내데스크 옆 운영 부스
         </div>
       </section>
+
+      {showShuttleModal ? (
+        <ModalPortal>
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 px-4 pb-4 pt-10 backdrop-blur-[2px] sm:items-center">
+            <div className="w-full max-w-[420px] rounded-[28px] border-[2px] border-[color:var(--ink)] bg-[color:var(--panel)] p-5 shadow-[6px_6px_0_rgba(36,27,22,0.2)]">
+              <p className="font-display text-xs uppercase tracking-[0.35em] text-[color:var(--muted)]">셔틀버스 운영시간</p>
+              <h3 className="mt-3 text-xl font-semibold leading-tight">야탑역 &gt; 만나교회</h3>
+              <div className="mt-4 rounded-[2px] bg-[rgba(238,202,126,0.26)] px-4 py-4 text-[0.98rem] leading-8 text-[color:var(--ink)]">
+                <p>6.23 화 9:30-10:00</p>
+                <p>6.24 수 13:00-13:30</p>
+                <p>6.25 목 9:30-10:00</p>
+              </div>
+
+              <div className="mt-5">
+                <button
+                  type="button"
+                  onClick={() => setShowShuttleModal(false)}
+                  className="w-full rounded-[2px] bg-[color:var(--ink)] px-4 py-3 text-sm font-semibold text-[color:var(--paper)]"
+                >
+                  확인
+                </button>
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
+      ) : null}
     </div>
   );
 }
@@ -157,55 +196,6 @@ function ArrowIcon({ open }: { open: boolean }) {
       fill="none"
     >
       <path d="M4 7l6 6 6-6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="square" strokeLinejoin="miter" />
-    </svg>
-  );
-}
-
-function MegaphoneIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 48 48" className="h-8 w-8 fill-none stroke-current">
-      <path d="M10 24h8l14-8v16l-14-8h-8z" strokeWidth="3.5" strokeLinejoin="round" />
-      <path d="M18 28l2 8" strokeWidth="3.5" strokeLinecap="round" />
-      <path d="M34 18v12" strokeWidth="3.5" strokeLinecap="round" />
-      <path d="M38 20l2-2" strokeWidth="3.5" strokeLinecap="round" />
-      <path d="M38 28l2 2" strokeWidth="3.5" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function ShuttleIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 40 40" className="h-9 w-9 fill-none stroke-current">
-      <rect x="8" y="7" width="24" height="21" rx="5" strokeWidth="3.2" />
-      <path d="M8 15h24" strokeWidth="3.2" />
-      <path d="M12 22h5M23 22h5" strokeWidth="3.2" strokeLinecap="round" />
-      <path d="M13 29v4M27 29v4" strokeWidth="3.2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function ParkingIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 40 40"
-      className="h-9 w-9"
-    >
-      <path
-        d="M12 32V8h10.5c5.2 0 8.5 3.1 8.5 7.9 0 5.1-3.5 8.2-8.7 8.2h-5.2V32zM17.1 19.8h4.2c2.6 0 4.4-1.3 4.4-3.8 0-2.3-1.6-3.7-4.3-3.7h-4.3z"
-        fill="currentColor"
-      />
-    </svg>
-  );
-}
-
-function StayIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 40 40" className="h-9 w-9 fill-none stroke-current">
-      <path d="M6 28h28" strokeWidth="3.2" strokeLinecap="round" />
-      <path d="M9 28v-9h8a5 5 0 0 1 5 5v4" strokeWidth="3.2" strokeLinejoin="round" />
-      <path d="M22 17h7a5 5 0 0 1 5 5v6" strokeWidth="3.2" strokeLinejoin="round" />
-      <path d="M13 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" strokeWidth="3.2" />
     </svg>
   );
 }

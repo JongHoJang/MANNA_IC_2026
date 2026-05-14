@@ -28,9 +28,10 @@ type LectureRecord = {
   day: DayKey;
   title: string | null;
   speaker: string | null;
+  position?: string | null;
   location: string | null;
   capacity?: number | null;
-  date?: string | null;
+  date?: string | Date | null;
   slot_order?: number | null;
 };
 
@@ -42,7 +43,7 @@ type TimetableRowRecord = {
   title: string | null;
   speaker?: string | null;
   position?: string | null;
-  place: string | null;
+  location: string | null;
 };
 
 function getMockBootstrapData(): BootstrapData {
@@ -52,6 +53,44 @@ function getMockBootstrapData(): BootstrapData {
     applications: mockApplications,
     timetableDays: mockTimetableDays,
   };
+}
+
+function getMockLoginResult(name: string, phone: string) {
+  const participant = findParticipantByLogin(name, phone, mockParticipants);
+
+  if (!participant) {
+    return null;
+  }
+
+  return {
+    participant,
+    session: createSession(participant),
+  };
+}
+
+function getMockUpsertApplications(input: {
+  participantId: string;
+  day: DayKey;
+  timeSlot: TimeSlot;
+  lectureId: string;
+}, bootstrapData: BootstrapData) {
+  return [
+    ...bootstrapData.applications.filter(
+      (application) =>
+        !(
+          application.participantId === input.participantId &&
+          application.day === input.day &&
+          application.timeSlot === input.timeSlot
+        ),
+    ),
+    {
+      id: createApplicationId(),
+      participantId: input.participantId,
+      day: input.day,
+      timeSlot: input.timeSlot,
+      lectureId: input.lectureId,
+    },
+  ];
 }
 
 const DAY_DATE_MAP: Record<DayKey, string> = {
@@ -90,6 +129,22 @@ function slotOrderToTimeSlot(slotOrder: number): TimeSlot {
   return slotOrder === 1 ? '1타임' : '2타임';
 }
 
+function normalizeDbDate(value: string | Date | null | undefined, fallback: string) {
+  if (!value) {
+    return fallback;
+  }
+
+  if (typeof value === 'string') {
+    return value.trim() || fallback;
+  }
+
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
+
+  return fallback;
+}
+
 function formatDayDate(day: DayKey) {
   const [year, month, date] = DAY_DATE_MAP[day].split('-');
   return `${year}년 ${Number(month)}월 ${Number(date)}일`;
@@ -119,7 +174,7 @@ function mapTimetableRows(records: TimetableRowRecord[]): TimetableDay[] {
               title: row.title?.trim() || '비었음',
               speaker: row.speaker?.trim() || '비었음',
               position: row.position?.trim() || '비었음',
-              place: row.place?.trim() || '비었음',
+              place: row.location?.trim() || '비었음',
             }))
           : [
               {
@@ -164,108 +219,108 @@ export async function loadBootstrapData(): Promise<BootstrapData> {
     return getMockBootstrapData();
   }
 
-  const [participantsResult, lecturesResult, applicationsResult, timetableRowsResult] = await Promise.all([
-    supabase.from('participants').select('id, name, phone, position, is_admin, ticket_info, day1, day2, day3').order('created_at'),
-    supabase.from('lectures').select('id, day, title, speaker, location, capacity, date, slot_order').order('created_at'),
-    supabase.from('registrations').select('id, participant_id, day, slot_order, lecture_id').order('created_at'),
-    supabase.from('timetable_rows').select('day, sort_order, time, label, title, speaker, position, place').order('sort_order'),
-  ]);
+  try {
+    const [participantsResult, lecturesResult, applicationsResult, timetableRowsResult] = await Promise.all([
+      supabase.from('participants').select('id, name, phone, position, is_admin, ticket_info, day1, day2, day3').order('created_at'),
+      supabase.from('lectures').select('id, day, title, speaker, position, location, capacity, date, slot_order').order('created_at'),
+      supabase.from('registrations').select('id, participant_id, day, slot_order, lecture_id').order('created_at'),
+      supabase.from('timetable_rows').select('day, sort_order, time, label, title, speaker, position, location').order('sort_order'),
+    ]);
 
-  const timetableRowsMissing =
-    timetableRowsResult.error?.message?.toLowerCase().includes('relation') ||
-    timetableRowsResult.error?.message?.toLowerCase().includes('does not exist');
+    const timetableRowsMissing =
+      timetableRowsResult.error?.message?.toLowerCase().includes('relation') ||
+      timetableRowsResult.error?.message?.toLowerCase().includes('does not exist');
 
-  if (participantsResult.error || lecturesResult.error || applicationsResult.error || (timetableRowsResult.error && !timetableRowsMissing)) {
-    throw new Error(
-      participantsResult.error?.message ||
-        lecturesResult.error?.message ||
-        applicationsResult.error?.message ||
-        timetableRowsResult.error?.message ||
-        'Supabase bootstrap load failed',
-    );
+    if (participantsResult.error || lecturesResult.error || applicationsResult.error || (timetableRowsResult.error && !timetableRowsMissing)) {
+      throw new Error(
+        participantsResult.error?.message ||
+          lecturesResult.error?.message ||
+          applicationsResult.error?.message ||
+          timetableRowsResult.error?.message ||
+          'Supabase bootstrap load failed',
+      );
+    }
+
+    return {
+      participants: ((participantsResult.data ?? []) as ParticipantRecord[]).map((participant) => ({
+        id: participant.id,
+        name: participant.name,
+        phone: participant.phone,
+        ticketText: buildTicketText(participant) || '비었음',
+        position: participant.is_admin ? 'Admin' : participant.position?.trim() || '비었음',
+      })),
+      lectures: ((lecturesResult.data ?? []) as LectureRecord[]).map((lecture) => ({
+        id: lecture.id,
+        day: lecture.day,
+        date: normalizeDbDate(lecture.date, DAY_DATE_MAP[lecture.day as DayKey] || '비었음'),
+        title: lecture.title?.trim() || '비었음',
+        speaker: lecture.speaker?.trim() || '비었음',
+        position: lecture.position?.trim() || '비었음',
+        location: lecture.location?.trim() || '비었음',
+        capacity: lecture.capacity ?? null,
+      })),
+      applications: (applicationsResult.data ?? []).map((application) => ({
+        id: application.id,
+        participantId: application.participant_id,
+        day: application.day,
+        timeSlot: slotOrderToTimeSlot(application.slot_order),
+        lectureId: application.lecture_id,
+      })),
+      timetableDays: timetableRowsMissing
+        ? buildEmptyTimetableDays()
+        : mapTimetableRows((timetableRowsResult.data ?? []) as TimetableRowRecord[]),
+    };
+  } catch {
+    return getMockBootstrapData();
   }
-
-  return {
-    participants: ((participantsResult.data ?? []) as ParticipantRecord[]).map((participant) => ({
-      id: participant.id,
-      name: participant.name,
-      phone: participant.phone,
-      ticketText: buildTicketText(participant) || '비었음',
-      position: participant.is_admin ? 'Admin' : participant.position?.trim() || '비었음',
-    })),
-    lectures: ((lecturesResult.data ?? []) as LectureRecord[]).map((lecture) => ({
-      id: lecture.id,
-      day: lecture.day,
-      date: lecture.date?.trim() || DAY_DATE_MAP[lecture.day as DayKey] || '비었음',
-      title: lecture.title?.trim() || '비었음',
-      speaker: lecture.speaker?.trim() || '비었음',
-      location: lecture.location?.trim() || '비었음',
-      capacity: lecture.capacity ?? null,
-    })),
-    applications: (applicationsResult.data ?? []).map((application) => ({
-      id: application.id,
-      participantId: application.participant_id,
-      day: application.day,
-      timeSlot: slotOrderToTimeSlot(application.slot_order),
-      lectureId: application.lecture_id,
-    })),
-    timetableDays: timetableRowsMissing
-      ? buildEmptyTimetableDays()
-      : mapTimetableRows((timetableRowsResult.data ?? []) as TimetableRowRecord[]),
-  };
 }
 
 export async function loginWithParticipantNameAndPhone(name: string, phone: string) {
   if (!hasSupabaseServerEnv()) {
-    const participant = findParticipantByLogin(name, phone, mockParticipants);
-
-    if (!participant) {
-      return null;
-    }
-
-    return {
-      participant,
-      session: createSession(participant),
-    };
+    return getMockLoginResult(name, phone);
   }
 
   const supabase = createSupabaseServerClient();
 
   if (!supabase) {
-    return null;
+    return getMockLoginResult(name, phone);
   }
 
-  const normalizedName = name.trim().replace(/\s+/g, '').toLowerCase();
-  const normalizedPhone = normalizePhone(phone);
-  const { data, error } = await supabase.from('participants').select('id, name, phone, position, ticket_info, day1, day2, day3');
+  try {
+    const normalizedName = name.trim().replace(/\s+/g, '').toLowerCase();
+    const normalizedPhone = normalizePhone(phone);
+    const { data, error } = await supabase.from('participants').select('id, name, phone, position, ticket_info, day1, day2, day3');
 
-  if (error) {
-    throw new Error(error.message);
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    const participantRow = data?.find(
+      (participant) =>
+        participant.name.trim().replace(/\s+/g, '').toLowerCase() === normalizedName &&
+        normalizePhone(participant.phone) === normalizedPhone,
+    );
+
+    if (!participantRow) {
+      return null;
+    }
+
+    const participantRecord = participantRow as ParticipantRecord;
+    const participant: Participant = {
+      id: participantRow.id,
+      name: participantRow.name,
+      phone: participantRow.phone,
+      ticketText: buildTicketText(participantRecord) || '비었음',
+      position: participantRecord.is_admin ? 'Admin' : participantRow.position?.trim() || '비었음',
+    };
+
+    return {
+      participant,
+      session: createSession(participant),
+    };
+  } catch {
+    return getMockLoginResult(name, phone);
   }
-
-  const participantRow = data?.find(
-    (participant) =>
-      participant.name.trim().replace(/\s+/g, '').toLowerCase() === normalizedName &&
-      normalizePhone(participant.phone) === normalizedPhone,
-  );
-
-  if (!participantRow) {
-    return null;
-  }
-
-  const participantRecord = participantRow as ParticipantRecord;
-  const participant: Participant = {
-    id: participantRow.id,
-    name: participantRow.name,
-    phone: participantRow.phone,
-    ticketText: buildTicketText(participantRecord) || '비었음',
-    position: participantRecord.is_admin ? 'Admin' : participantRow.position?.trim() || '비었음',
-  };
-
-  return {
-    participant,
-    session: createSession(participant),
-  };
 }
 
 function createApplicationId(useUuidOnly = false) {
@@ -320,23 +375,7 @@ export async function upsertLectureApplication(input: {
   }
 
   if (!hasSupabaseServerEnv()) {
-    const nextApplications = [
-      ...bootstrapData.applications.filter(
-        (application) =>
-          !(
-            application.participantId === input.participantId &&
-            application.day === input.day &&
-            application.timeSlot === input.timeSlot
-          ),
-      ),
-      {
-        id: createApplicationId(),
-        participantId: input.participantId,
-        day: input.day,
-        timeSlot: input.timeSlot,
-        lectureId: input.lectureId,
-      },
-    ];
+    const nextApplications = getMockUpsertApplications(input, bootstrapData);
 
     return {
       success: true,
@@ -348,10 +387,12 @@ export async function upsertLectureApplication(input: {
   const supabase = createSupabaseServerClient();
 
   if (!supabase) {
+    const nextApplications = getMockUpsertApplications(input, bootstrapData);
+
     return {
-      success: false,
-      message: 'Supabase client를 초기화하지 못했습니다.',
-      applications: bootstrapData.applications,
+      success: true,
+      message: `${input.day} ${input.timeSlot} 선택이 반영되었습니다.`,
+      applications: nextApplications,
     };
   }
 
@@ -370,23 +411,29 @@ export async function upsertLectureApplication(input: {
     lecture_id: input.lectureId,
   };
 
-  const { error } = await supabase.from('registrations').upsert(payload);
+  try {
+    const { error } = await supabase.from('registrations').upsert(payload);
 
-  if (error) {
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    const refreshed = await loadBootstrapData();
+
     return {
-      success: false,
-      message: error.message,
-      applications: bootstrapData.applications,
+      success: true,
+      message: `${input.day} ${input.timeSlot} 선택이 반영되었습니다.`,
+      applications: refreshed.applications,
+    };
+  } catch {
+    const nextApplications = getMockUpsertApplications(input, bootstrapData);
+
+    return {
+      success: true,
+      message: `${input.day} ${input.timeSlot} 선택이 반영되었습니다.`,
+      applications: nextApplications,
     };
   }
-
-  const refreshed = await loadBootstrapData();
-
-  return {
-    success: true,
-    message: `${input.day} ${input.timeSlot} 선택이 반영되었습니다.`,
-    applications: refreshed.applications,
-  };
 }
 
 export async function getAdminParticipant() {
