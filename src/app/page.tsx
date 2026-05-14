@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { FormEvent } from 'react';
+import type { FormEvent, UIEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import type { DayKey, Lecture, TimeSlot } from '@/types';
 import { useAppStore } from '@/store/useAppStore';
@@ -45,6 +45,7 @@ export default function HomePage() {
   const [activeLectureSlot, setActiveLectureSlot] = useState<TimeSlot>('1타임');
   const [currentTime, setCurrentTime] = useState(() => formatCurrentTime(new Date()));
   const [activeTab, setActiveTab] = useState<AppTab>('home');
+  const [contentScrollProgress, setContentScrollProgress] = useState(0);
   const contentScrollRef = useRef<HTMLDivElement | null>(null);
   const lectureLookup = useMemo(
     () => new Map(lectures.map((lecture) => [lecture.id, lecture] as const)) as Map<string, Lecture>,
@@ -127,7 +128,14 @@ export default function HomePage() {
 
   useEffect(() => {
     contentScrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+    setContentScrollProgress(0);
   }, [activeTab]);
+
+  function handleContentScroll(event: UIEvent<HTMLDivElement>) {
+    const container = event.currentTarget;
+    const maxScrollTop = Math.max(container.scrollHeight - container.clientHeight, 1);
+    setContentScrollProgress(container.scrollTop / maxScrollTop);
+  }
 
   async function handleLoginSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -240,10 +248,20 @@ export default function HomePage() {
           </button>
         </header>
 
+        <div className="px-1 pb-2">
+          <div className="h-1 overflow-hidden rounded-full bg-white/45">
+            <div
+              className="h-full rounded-full bg-[color:var(--ink)] transition-[width] duration-200 ease-out"
+              style={{ width: `${Math.max(0, Math.min(1, contentScrollProgress)) * 100}%` }}
+            />
+          </div>
+        </div>
+
         <div
           ref={contentScrollRef}
           className="flex-1 min-h-0 space-y-6 overflow-y-auto px-1 py-3 pb-28"
           style={{ scrollbarGutter: 'stable' }}
+          onScroll={handleContentScroll}
         >
           {message ? <Notice>{message}</Notice> : null}
           {activeTab === 'home' ? <HomeTab currentParticipant={currentParticipant} /> : null}

@@ -17,12 +17,35 @@ export function HomeTab({ currentParticipant }: { currentParticipant: Participan
   const slideRefs = useRef<Array<HTMLDivElement | null>>([]);
 
   function scrollToSlide(index: number) {
-    slideRefs.current[index]?.scrollIntoView({
+    const slide = slideRefs.current[index];
+
+    if (!slide) {
+      return;
+    }
+
+    slide.scrollIntoView({
       behavior: 'smooth',
       inline: 'center',
       block: 'nearest',
     });
+
     setActiveIndex(index);
+  }
+
+  function goToPreviousSlide() {
+    if (activeIndex <= 0) {
+      return;
+    }
+
+    scrollToSlide(activeIndex - 1);
+  }
+
+  function goToNextSlide() {
+    if (activeIndex >= CAROUSEL_IMAGES.length - 1) {
+      return;
+    }
+
+    scrollToSlide(activeIndex + 1);
   }
 
   return (
@@ -43,7 +66,7 @@ export function HomeTab({ currentParticipant }: { currentParticipant: Participan
           className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           onScroll={(event) => {
             const container = event.currentTarget;
-            const nextIndex = Math.round(container.scrollLeft / container.clientWidth);
+            const nextIndex = getNearestSlideIndex(container.scrollLeft, container.clientWidth);
             if (nextIndex !== activeIndex) {
               setActiveIndex(Math.max(0, Math.min(CAROUSEL_IMAGES.length - 1, nextIndex)));
             }
@@ -65,8 +88,21 @@ export function HomeTab({ currentParticipant }: { currentParticipant: Participan
                     alt={`MANNA IC 2026 홈 캐러셀 이미지 ${index + 1}`}
                     fill
                     sizes="(max-width: 460px) 92vw, 420px"
-                    className="object-cover object-top"
+                    className="select-none object-cover object-top"
+                    draggable={false}
                     priority={index === 0}
+                  />
+                  <button
+                    type="button"
+                    onClick={goToPreviousSlide}
+                    aria-label="이전 포스터 보기"
+                    className="absolute left-4 top-1/2 z-10 -translate-y-1/2 bg-transparent px-1 text-[2rem] font-black leading-none text-[color:var(--ink)]/80 transition hover:text-[color:var(--ink)]"
+                  />
+                  <button
+                    type="button"
+                    onClick={goToNextSlide}
+                    aria-label="다음 포스터 보기"
+                    className="absolute right-4 top-1/2 z-10 -translate-y-1/2 bg-transparent px-1 text-[2rem] font-black leading-none text-[color:var(--ink)]/80 transition hover:text-[color:var(--ink)]"
                   />
                 </div>
               </article>
@@ -102,4 +138,9 @@ export function HomeTab({ currentParticipant }: { currentParticipant: Participan
       </section>
     </div>
   );
+}
+
+function getNearestSlideIndex(scrollLeft: number, containerWidth: number) {
+  const slideWidth = containerWidth;
+  return Math.max(0, Math.min(CAROUSEL_IMAGES.length - 1, Math.round(scrollLeft / slideWidth)));
 }
