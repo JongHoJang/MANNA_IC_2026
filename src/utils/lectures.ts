@@ -36,9 +36,21 @@ export function findLectureById(lectureId: string, rawLectures: Lecture[]) {
 }
 
 export function formatLectureLocation(lecture: Lecture, applicationCount?: number) {
+  const normalizedLocation = normalizePlaceLabel(lecture.location);
+
   if (!lecture.capacity || lecture.capacity <= 0 || typeof applicationCount !== 'number') {
-    return lecture.location;
+    return normalizedLocation;
   }
 
-  return `${lecture.location} (${applicationCount}/${lecture.capacity})`;
+  return `${normalizedLocation} (${applicationCount}/${lecture.capacity})`;
+}
+
+export function normalizePlaceLabel(place: string | null | undefined) {
+  const normalizedPlace = place?.trim();
+
+  if (!normalizedPlace || normalizedPlace === '비었음') {
+    return '장소 미정';
+  }
+
+  return normalizedPlace;
 }

@@ -2,11 +2,12 @@
 
 import { useLayoutEffect, useRef, useState } from 'react';
 import type { Application, DayKey, Lecture, TimetableDay, TimeSlot } from '@/types';
-import { formatLectureLocation } from '@/utils/lectures';
+import { formatLectureLocation, normalizePlaceLabel } from '@/utils/lectures';
 import { DAY_LABELS } from '@/utils/tickets';
 import { isBreakSession, isTimeInsideRange } from './home-helpers';
-import { PersonMark, PinMiniMark } from './home-marks';
+import { PersonMark, PinMark, PinMiniMark } from './home-marks';
 import { ModalPortal } from './ModalPortal';
+import { RoughBorder } from './RoughBorder';
 
 export function TimetableTab({
   activeDay,
@@ -89,6 +90,7 @@ export function TimetableTab({
             const isBreak = isBreakSession(row.label, row.title);
             const titleText = row.title.trim();
             const labelText = row.label.trim();
+            const displayLabelText = formatTimetableLabel(labelText);
             const selectedSlot = resolveSelectionSlot(labelText, titleText, row.place);
             const selectedApplication = selectedSlot
               ? timetableApplications.find((application) => application.timeSlot === selectedSlot)
@@ -106,6 +108,7 @@ export function TimetableTab({
                       : 'opacity-55',
                   ].join(' ')}
                 >
+                  {!isCurrent ? <RoughBorder stroke="rgba(36,27,22,0.82)" strokeWidth={1.7} roughness={1.25} bowing={1.35} /> : null}
                   {isCurrent ? (
                     <span
                       aria-hidden="true"
@@ -155,7 +158,7 @@ export function TimetableTab({
                           isCurrent ? 'text-[color:var(--ink)]' : 'text-[color:var(--ink)]/68',
                         ].join(' ')}
                       >
-                        {labelText}
+                        {displayLabelText}
                         {titleText ? <span className="mx-1">·</span> : null}
                         {titleText ? <span>{titleText}</span> : null}
                       </p>
@@ -167,7 +170,7 @@ export function TimetableTab({
                       ].join(' ')}
                     >
                       <PinMiniMark />
-                      <span>{row.place}</span>
+                      <span>{normalizePlaceLabel(row.place)}</span>
                     </p>
                   </div>
                 </article>
@@ -179,12 +182,13 @@ export function TimetableTab({
                 ref={isCurrent ? currentRowRef : null}
                 key={`${activeDay.day}-${row.time}-${index}`}
                 className={[
-                  'relative grid grid-cols-[72px_1fr] gap-3 overflow-hidden rounded-[2px] border-[2px] bg-[color:var(--paper)] px-4 py-4 transition',
+                  'relative grid grid-cols-[72px_1fr] gap-3 overflow-hidden rounded-[2px] bg-[color:var(--paper)] px-4 py-4 transition',
                   isCurrent
-                    ? 'border-[rgba(36,27,22,0.1)] bg-[color:var(--page-bg)] shadow-none'
-                    : 'border-[color:var(--ink)] bg-[rgba(238,202,126,0.28)] text-[color:var(--ink)] shadow-[3px_3px_0_rgba(36,27,22,0.14)]',
+                    ? 'bg-[color:var(--page-bg)] shadow-none'
+                    : 'bg-[rgba(238,202,126,0.28)] text-[color:var(--ink)] shadow-[3px_3px_0_rgba(36,27,22,0.14)]',
                 ].join(' ')}
               >
+                {!isCurrent ? <RoughBorder stroke="rgba(36,27,22,0.86)" strokeWidth={1.8} roughness={1.15} bowing={1.2} /> : null}
                 {isCurrent ? (
                   <span
                     aria-hidden="true"
@@ -216,7 +220,7 @@ export function TimetableTab({
                           isCurrent ? 'text-[color:var(--muted)]/58' : 'text-[color:var(--muted)]',
                         ].join(' ')}
                       >
-                        {labelText}
+                        {displayLabelText}
                       </p>
                       {titleText && !selectedSlot ? (
                         <p
@@ -246,14 +250,21 @@ export function TimetableTab({
                             <p className="mt-1 text-sm font-semibold leading-6 text-[color:var(--ink)]">
                               {selectedApplication.lecture.title}
                             </p>
-                            <p className="mt-1 text-[11px] text-[color:var(--ink)]/62">
-                              {selectedApplication.lecture.speaker}
-                              {selectedApplication.lecture.position && selectedApplication.lecture.position !== '비었음'
-                                ? ` · ${selectedApplication.lecture.position}`
-                                : ''}
-                              {' · '}
-                              {formatLectureLocation(selectedApplication.lecture, lectureApplicationCountMap[selectedApplication.lecture.id] ?? 0)}
-                            </p>
+                            <div className="mt-1 space-y-1.5 text-[11px] text-[color:var(--ink)]/62">
+                              <p className="flex min-w-0 items-start gap-1.5">
+                                <PersonMark />
+                                <span className="min-w-0">
+                                  {selectedApplication.lecture.speaker}
+                                  {selectedApplication.lecture.position && selectedApplication.lecture.position !== '비었음'
+                                    ? ` · ${selectedApplication.lecture.position}`
+                                    : ''}
+                                </span>
+                              </p>
+                              <p className="inline-flex items-start gap-1.5">
+                                <PinMark />
+                                <span>{formatLectureLocation(selectedApplication.lecture, lectureApplicationCountMap[selectedApplication.lecture.id] ?? 0)}</span>
+                              </p>
+                            </div>
                           </>
                         ) : (
                           <p className="mt-1 text-sm font-semibold text-[color:var(--ink)]/62">강의를 선택해주세요.</p>
@@ -274,8 +285,8 @@ export function TimetableTab({
                         </button>
                       </div>
                     ) : null}
-                    <div className="flex items-center justify-between gap-3">
-                      {row.speaker !== '비었음' ? (
+                    <div className="space-y-1.5">
+                      {formatSpeakerLabel(row.speaker, row.position) ? (
                         <p
                           className={[
                             'flex min-w-0 items-start gap-1.5 text-[11px] font-medium tracking-[0.08em]',
@@ -284,22 +295,19 @@ export function TimetableTab({
                         >
                           <PersonMark />
                           <span className="min-w-0 whitespace-normal break-keep leading-[1.35]">
-                            {row.speaker}
-                            {row.position && row.position !== '비었음' ? ` · ${row.position}` : ''}
+                            {formatSpeakerLabel(row.speaker, row.position)}
                           </span>
                         </p>
-                      ) : (
-                        <span />
-                      )}
-                      {selectedSlot ? <span /> : (
+                      ) : null}
+                      {selectedSlot ? null : (
                         <p
                           className={[
-                            'inline-flex shrink-0 items-center justify-end gap-1.5 text-[11px] font-medium tracking-[0.08em]',
+                            'inline-flex items-start gap-1.5 text-[11px] font-medium tracking-[0.08em]',
                             isCurrent ? 'text-[color:var(--ink)]/42' : 'text-[color:var(--ink)]/68',
                           ].join(' ')}
                         >
                           <PinMiniMark />
-                          <span>{row.place}</span>
+                          <span>{normalizePlaceLabel(row.place)}</span>
                         </p>
                       )}
                     </div>
@@ -336,6 +344,35 @@ export function TimetableTab({
       ) : null}
     </div>
   );
+}
+
+function formatSpeakerLabel(speaker: string | null | undefined, position?: string | null) {
+  const normalizedSpeaker = speaker?.trim();
+  const normalizedPosition = position?.trim();
+
+  if (!normalizedSpeaker || normalizedSpeaker === '비었음') {
+    return '';
+  }
+
+  if (!normalizedPosition || normalizedPosition === '비었음') {
+    return normalizedSpeaker;
+  }
+
+  return `${normalizedSpeaker} · ${normalizedPosition}`;
+}
+
+function formatTimetableLabel(label: string) {
+  const normalizedLabel = label.trim();
+
+  if (normalizedLabel === '선택세션1') {
+    return '첫번째 선택세션';
+  }
+
+  if (normalizedLabel === '선택세션2') {
+    return '두번째 선택세션';
+  }
+
+  return label;
 }
 
 function resolveSelectionSlot(label: string, title?: string, place?: string): TimeSlot | null {

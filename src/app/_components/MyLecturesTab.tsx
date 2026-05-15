@@ -50,14 +50,17 @@ export function MyLecturesTab({
   const slotApplications = useMemo(() => {
     return new Map(dayApplications.map((application) => [application.timeSlot, application] as const));
   }, [dayApplications]);
-  const selectedApplicationBySlot = slotApplications;
   const dayLectures = useMemo(() => lectures.filter((lecture) => lecture.day === activeDay), [activeDay, lectures]);
   const [expandedSlot, setExpandedSlot] = useState<TimeSlot | null>(null);
   const [pendingLectureBySlot, setPendingLectureBySlot] = useState<Partial<Record<TimeSlot, string>>>({});
   const [confirmTarget, setConfirmTarget] = useState<{ slot: TimeSlot; lectureId: string } | null>(null);
   const [purchaseNoticeDay, setPurchaseNoticeDay] = useState<DayKey | null>(null);
-  const actionButtonRefs = useRef<Partial<Record<TimeSlot, HTMLButtonElement | null>>>({});
+  const slotApplicationsRef = useRef(slotApplications);
   const lectureItemRefs = useRef<Partial<Record<TimeSlot, Partial<Record<string, HTMLButtonElement | null>>>>>({});
+
+  useEffect(() => {
+    slotApplicationsRef.current = slotApplications;
+  }, [slotApplications]);
 
   useEffect(() => {
     setExpandedSlot(null);
@@ -71,7 +74,7 @@ export function MyLecturesTab({
       return;
     }
 
-    const selectedApplication = selectedApplicationBySlot.get(expandedSlot);
+    const selectedApplication = slotApplicationsRef.current.get(expandedSlot);
     const selectedLectureId = selectedApplication?.lectureId;
 
     if (!selectedLectureId) {
@@ -81,11 +84,7 @@ export function MyLecturesTab({
     window.requestAnimationFrame(() => {
       slowScrollElementIntoView(lectureItemRefs.current[expandedSlot]?.[selectedLectureId], 700);
     });
-  }, [expandedSlot, selectedApplicationBySlot]);
-
-  function closeConfirmModal() {
-    setConfirmTarget(null);
-  }
+  }, [expandedSlot]);
 
   async function commitPendingLecture(slot: TimeSlot, lectureId: string) {
     const success = await onApplyLecture(activeDay, slot, lectureId);
@@ -111,19 +110,29 @@ export function MyLecturesTab({
     setExpandedSlot(null);
   }
 
-  function scrollActionButtonIntoView(slot: TimeSlot) {
-    window.requestAnimationFrame(() => {
-      window.setTimeout(() => {
-        slowScrollElementIntoView(actionButtonRefs.current[slot], 700);
-      }, 80);
-    });
-  }
-
   const confirmLecture = confirmTarget ? lectureLookup.get(confirmTarget.lectureId) : undefined;
   const confirmApplication = confirmTarget
     ? dayApplications.find((application) => application.timeSlot === confirmTarget.slot)
     : undefined;
   const currentLecture = confirmApplication ? lectureLookup.get(confirmApplication.lectureId) : undefined;
+
+  function closeConfirmModal() {
+    if (confirmTarget) {
+      setPendingLectureBySlot((current) => {
+        const next = { ...current };
+
+        if (confirmApplication?.lectureId) {
+          next[confirmTarget.slot] = confirmApplication.lectureId;
+        } else {
+          delete next[confirmTarget.slot];
+        }
+
+        return next;
+      });
+    }
+
+    setConfirmTarget(null);
+  }
 
   function getLectureSequenceLabel(lectureId: string) {
     const sequence = dayLectures.findIndex((lecture) => lecture.id === lectureId);
@@ -180,7 +189,6 @@ export function MyLecturesTab({
           const application = slotApplications.get(slot);
           const pendingLectureId = pendingLectureBySlot[slot];
           const hasExistingApplication = Boolean(application);
-          const hasEffectivePendingSelection = Boolean(pendingLectureId && pendingLectureId !== application?.lectureId);
           const displayedLecture = pendingLectureId
             ? lectureLookup.get(pendingLectureId)
             : application
@@ -192,11 +200,7 @@ export function MyLecturesTab({
             ? hasExistingApplication
               ? '강의 변경하기'
               : '강의 선택하기'
-            : hasEffectivePendingSelection
-              ? hasExistingApplication
-                ? '강의 변경하기'
-                : '강의 결정하기'
-              : '닫기';
+            : '닫기';
 
           return (
             <section
@@ -221,18 +225,17 @@ export function MyLecturesTab({
                           {splitLectureHeading(displayedLecture.title).title}
                         </p>
                       </div>
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-[color:var(--muted)]">
-                        <span className="inline-flex items-center gap-1.5">
+                      <div className="space-y-1.5 text-sm text-[color:var(--muted)]">
+                        <span className="flex items-start gap-1.5">
                           <PersonMark />
-                          <span>
+                          <span className="leading-[1.35]">
                             {displayedLecture.speaker}
                             {displayedLecture.position && displayedLecture.position !== '비었음' ? ` · ${displayedLecture.position}` : ''}
                           </span>
                         </span>
-                        <span className="text-[color:var(--muted)]">·</span>
-                        <span className="inline-flex items-center gap-1.5">
+                        <span className="flex items-start gap-1.5">
                           <PinMark />
-                          <span>{formatLectureLocation(displayedLecture, lectureApplicationCountMap[displayedLecture.id] ?? 0)}</span>
+                          <span className="leading-[1.35]">{formatLectureLocation(displayedLecture, lectureApplicationCountMap[displayedLecture.id] ?? 0)}</span>
                         </span>
                       </div>
                     </div>
@@ -243,10 +246,7 @@ export function MyLecturesTab({
               </div>
 
               <div className="px-4 pb-4">
-                  <button
-                  ref={(node) => {
-                    actionButtonRefs.current[slot] = node;
-                  }}
+                <button
                   type="button"
                   onClick={() => {
                     if (!isExpanded) {
@@ -257,12 +257,6 @@ export function MyLecturesTab({
                         }));
                       }
                       setExpandedSlot(slot);
-                      return;
-                    }
-
-                    if (hasEffectivePendingSelection && pendingLectureId) {
-                      setExpandedSlot(null);
-                      setConfirmTarget({ slot, lectureId: pendingLectureId });
                       return;
                     }
 
@@ -302,10 +296,10 @@ export function MyLecturesTab({
                               return;
                             }
 
+                            const nextSelection = application?.lectureId === item.id ? undefined : item.id;
+
                             setPendingLectureBySlot((current) => {
                               const next = { ...current };
-                              const currentSelection = current[slot];
-                              const nextSelection = currentSelection === item.id || application?.lectureId === item.id ? undefined : item.id;
 
                               if (nextSelection) {
                                 next[slot] = nextSelection;
@@ -315,7 +309,10 @@ export function MyLecturesTab({
 
                               return next;
                             });
-                            scrollActionButtonIntoView(slot);
+
+                            if (nextSelection) {
+                              setConfirmTarget({ slot, lectureId: nextSelection });
+                            }
                           }}
                           className={[
                             'flex w-full items-start justify-between gap-3 rounded-[16px] border px-3 py-3 text-left transition',
@@ -336,12 +333,19 @@ export function MyLecturesTab({
                             <h4 className="mt-1 text-sm font-semibold leading-snug text-[color:var(--ink)]">
                               {itemHeading.title}
                             </h4>
-                            <p className="mt-1 text-xs text-[color:var(--muted)]">
-                              {item.speaker}
-                              {item.position && item.position !== '비었음' ? ` · ${item.position}` : ''}
-                              {' · '}
-                              {formatLectureLocation(item, lectureApplicationCountMap[item.id] ?? 0)}
-                            </p>
+                            <div className="mt-2 space-y-1.5 text-xs text-[color:var(--muted)]">
+                              <p className="flex items-start gap-1.5">
+                                <PersonMark />
+                                <span className="leading-[1.35]">
+                                  {item.speaker}
+                                  {item.position && item.position !== '비었음' ? ` · ${item.position}` : ''}
+                                </span>
+                              </p>
+                              <p className="flex items-start gap-1.5">
+                                <PinMark />
+                                <span className="leading-[1.35]">{formatLectureLocation(item, lectureApplicationCountMap[item.id] ?? 0)}</span>
+                              </p>
+                            </div>
                             {itemIsSelectedElsewhere ? (
                               <span className="mt-2 inline-flex rounded-full bg-[#e8e8e8] px-2.5 py-1 text-[11px] font-medium text-[color:var(--muted)]">
                                 다른 타임 선택됨
@@ -377,7 +381,7 @@ export function MyLecturesTab({
             {isConfirmingChange ? (
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-[22px] border border-[color:var(--line)] bg-white px-4 py-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[color:var(--muted)]">현재 선택</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[color:var(--muted)]">기존 선택 강의</p>
                   {currentLecture ? (
                     <div className="mt-2">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[color:var(--muted)]">
@@ -386,54 +390,75 @@ export function MyLecturesTab({
                       <p className="mt-1 text-sm font-semibold leading-snug text-[color:var(--ink)]">
                         {splitLectureHeading(currentLecture.title).title}
                       </p>
-                      <p className="mt-2 text-xs text-[color:var(--muted)]">
-                        {currentLecture.speaker}
-                        {currentLecture.position && currentLecture.position !== '비었음' ? ` · ${currentLecture.position}` : ''}
-                        {' · '}
-                        {formatLectureLocation(currentLecture, lectureApplicationCountMap[currentLecture.id] ?? 0)}
-                      </p>
+                      <div className="mt-2 space-y-1 text-xs text-[color:var(--muted)]">
+                        <p className="flex items-start gap-1.5">
+                          <PersonMark />
+                          <span className="leading-[1.35]">
+                            {currentLecture.speaker}
+                            {currentLecture.position && currentLecture.position !== '비었음' ? ` · ${currentLecture.position}` : ''}
+                          </span>
+                        </p>
+                        <p className="flex items-start gap-1.5">
+                          <PinMark />
+                          <span className="leading-[1.35]">{formatLectureLocation(currentLecture, lectureApplicationCountMap[currentLecture.id] ?? 0)}</span>
+                        </p>
+                      </div>
                     </div>
                   ) : (
                     <p className="mt-2 text-sm text-[color:var(--muted)]">아직 선택된 강의가 없습니다.</p>
                   )}
                 </div>
 
-                <div className="rounded-[22px] border border-[color:var(--line)] bg-[#fffdf7] px-4 py-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[color:var(--muted)]">변경 후</p>
+                <div className="rounded-[22px] border border-[color:var(--accent)] bg-[rgba(238,202,126,0.24)] px-4 py-4 shadow-[0_10px_24px_rgba(238,202,126,0.18)]">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[color:var(--ink)]/72">변경할 강의</p>
                   {confirmLecture ? (
                     <div className="mt-2">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[color:var(--muted)]">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[color:var(--ink)]/72">
                         {splitLectureHeading(confirmLecture.title).label}
                       </p>
                       <p className="mt-1 text-sm font-semibold leading-snug text-[color:var(--ink)]">
                         {splitLectureHeading(confirmLecture.title).title}
                       </p>
-                      <p className="mt-2 text-xs text-[color:var(--muted)]">
-                        {confirmLecture.speaker}
-                        {confirmLecture.position && confirmLecture.position !== '비었음' ? ` · ${confirmLecture.position}` : ''}
-                        {' · '}
-                        {formatLectureLocation(confirmLecture, lectureApplicationCountMap[confirmLecture.id] ?? 0)}
-                      </p>
+                      <div className="mt-2 space-y-1 text-xs text-[color:var(--muted)]">
+                        <p className="flex items-start gap-1.5">
+                          <PersonMark />
+                          <span className="leading-[1.35]">
+                            {confirmLecture.speaker}
+                            {confirmLecture.position && confirmLecture.position !== '비었음' ? ` · ${confirmLecture.position}` : ''}
+                          </span>
+                        </p>
+                        <p className="flex items-start gap-1.5">
+                          <PinMark />
+                          <span className="leading-[1.35]">{formatLectureLocation(confirmLecture, lectureApplicationCountMap[confirmLecture.id] ?? 0)}</span>
+                        </p>
+                      </div>
                     </div>
                   ) : null}
                 </div>
               </div>
             ) : confirmLecture ? (
-              <div className="mt-4 rounded-[22px] border border-[color:var(--line)] bg-[#fffdf7] px-4 py-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[color:var(--muted)]">신청할 강의</p>
+              <div className="mt-4 rounded-[22px] border border-[color:var(--accent)] bg-[rgba(238,202,126,0.24)] px-4 py-4 shadow-[0_10px_24px_rgba(238,202,126,0.18)]">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[color:var(--ink)]/72">신청할 강의</p>
                 <div className="mt-2">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[color:var(--muted)]">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[color:var(--ink)]/72">
                     {splitLectureHeading(confirmLecture.title).label}
                   </p>
                   <p className="mt-1 text-sm font-semibold leading-snug text-[color:var(--ink)]">
                     {splitLectureHeading(confirmLecture.title).title}
                   </p>
-                  <p className="mt-2 text-xs text-[color:var(--muted)]">
-                    {confirmLecture.speaker}
-                    {confirmLecture.position && confirmLecture.position !== '비었음' ? ` · ${confirmLecture.position}` : ''}
-                    {' · '}
-                    {formatLectureLocation(confirmLecture, lectureApplicationCountMap[confirmLecture.id] ?? 0)}
-                  </p>
+                  <div className="mt-2 space-y-1 text-xs text-[color:var(--muted)]">
+                    <p className="flex items-start gap-1.5">
+                      <PersonMark />
+                      <span className="leading-[1.35]">
+                        {confirmLecture.speaker}
+                        {confirmLecture.position && confirmLecture.position !== '비었음' ? ` · ${confirmLecture.position}` : ''}
+                      </span>
+                    </p>
+                    <p className="flex items-start gap-1.5">
+                      <PinMark />
+                      <span className="leading-[1.35]">{formatLectureLocation(confirmLecture, lectureApplicationCountMap[confirmLecture.id] ?? 0)}</span>
+                    </p>
+                  </div>
                 </div>
               </div>
             ) : null}

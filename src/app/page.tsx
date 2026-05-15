@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { FormEvent, UIEvent } from 'react';
+import type { FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import type { DayKey, Lecture, TimeSlot } from '@/types';
 import { useAppStore } from '@/store/useAppStore';
@@ -45,8 +45,9 @@ export default function HomePage() {
   const [activeLectureSlot, setActiveLectureSlot] = useState<TimeSlot>('1타임');
   const [currentTime, setCurrentTime] = useState(() => formatCurrentTime(new Date()));
   const [activeTab, setActiveTab] = useState<AppTab>('home');
-  const [contentScrollProgress, setContentScrollProgress] = useState(0);
   const contentScrollRef = useRef<HTMLDivElement | null>(null);
+  const progressBarRef = useRef<HTMLDivElement | null>(null);
+  const progressFrameRef = useRef<number | null>(null);
   const lectureLookup = useMemo(
     () => new Map(lectures.map((lecture) => [lecture.id, lecture] as const)) as Map<string, Lecture>,
     [lectures],
@@ -128,13 +129,44 @@ export default function HomePage() {
 
   useEffect(() => {
     contentScrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
-    setContentScrollProgress(0);
+    updateScrollProgress(0);
   }, [activeTab]);
 
-  function handleContentScroll(event: UIEvent<HTMLDivElement>) {
-    const container = event.currentTarget;
+  useEffect(() => {
+    return () => {
+      if (progressFrameRef.current !== null) {
+        window.cancelAnimationFrame(progressFrameRef.current);
+      }
+    };
+  }, []);
+
+  function updateScrollProgress(progress: number) {
+    if (!progressBarRef.current) {
+      return;
+    }
+
+    progressBarRef.current.style.transform = `scaleX(${Math.max(0, Math.min(1, progress))})`;
+  }
+
+  function syncScrollProgress(container: HTMLDivElement) {
     const maxScrollTop = Math.max(container.scrollHeight - container.clientHeight, 1);
-    setContentScrollProgress(container.scrollTop / maxScrollTop);
+    updateScrollProgress(container.scrollTop / maxScrollTop);
+  }
+
+  function handleContentScroll() {
+    const container = contentScrollRef.current;
+    if (!container) {
+      return;
+    }
+
+    if (progressFrameRef.current !== null) {
+      window.cancelAnimationFrame(progressFrameRef.current);
+    }
+
+    progressFrameRef.current = window.requestAnimationFrame(() => {
+      syncScrollProgress(container);
+      progressFrameRef.current = null;
+    });
   }
 
   async function handleLoginSubmit(event: FormEvent<HTMLFormElement>) {
@@ -251,8 +283,9 @@ export default function HomePage() {
         <div className="px-1 pb-2">
           <div className="h-1 overflow-hidden rounded-full bg-white/45">
             <div
-              className="h-full rounded-full bg-[color:var(--ink)] transition-[width] duration-200 ease-out"
-              style={{ width: `${Math.max(0, Math.min(1, contentScrollProgress)) * 100}%` }}
+              ref={progressBarRef}
+              className="h-full origin-left rounded-full bg-[color:var(--ink)] will-change-transform"
+              style={{ transform: 'scaleX(0)' }}
             />
           </div>
         </div>

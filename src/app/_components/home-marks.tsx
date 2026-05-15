@@ -1,9 +1,5 @@
 export function PinMiniMark() {
-  return (
-    <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border border-[color:var(--ink)]/22">
-      <span className="block h-1.5 w-1.5 rounded-full bg-[color:var(--ink)]/45" />
-    </span>
-  );
+  return <DotMark />;
 }
 
 export function ClockMark() {
@@ -15,19 +11,11 @@ export function ClockMark() {
 }
 
 export function PersonMark() {
-  return (
-    <span className="inline-flex h-4 w-4 items-center justify-center">
-      <span className="block h-3 w-3 rounded-full border border-[color:var(--muted)]" />
-    </span>
-  );
+  return <DotMark />;
 }
 
 export function PinMark() {
-  return (
-    <span className="inline-flex h-4 w-4 items-center justify-center">
-      <span className="block h-2.5 w-2.5 rounded-full border border-[color:var(--muted)]" />
-    </span>
-  );
+  return <DotMark />;
 }
 
 export function PencilMark() {
@@ -36,4 +24,8 @@ export function PencilMark() {
       <span className="block h-3 w-3 rotate-45 border-r border-t border-[color:var(--ink)]" />
     </span>
   );
+}
+
+function DotMark() {
+  return <span className="mt-[0.38em] inline-block h-[0.45rem] w-[0.45rem] shrink-0 rounded-full bg-black/40" />;
 }
