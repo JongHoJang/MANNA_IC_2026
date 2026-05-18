@@ -1,7 +1,7 @@
 import { applications as mockApplications, lectures as mockLectures, participants as mockParticipants, timetableDays as mockTimetableDays } from '@/mocks';
 import type { Application, DayKey, Lecture, Participant, TimetableDay, TimeSlot } from '@/types';
 import { createSession, findParticipantById, findParticipantByLogin, getRoleForParticipant, normalizePhone } from '@/utils/session';
-import { findLectureById } from '@/utils/lectures';
+import { findLectureById, isLectureFull } from '@/utils/lectures';
 import { createSupabaseServerClient, hasSupabaseServerEnv } from '@/lib/supabase/server';
 
 type BootstrapData = {
@@ -353,7 +353,7 @@ export async function upsertLectureApplication(input: {
   if (lecture.day !== input.day) {
     return {
       success: false,
-      message: '선택한 날짜와 강의 날짜가 일치하지 않습니다.',
+      message: '선택한 날짜와 세션 날짜가 일치하지 않습니다.',
       applications: bootstrapData.applications,
     };
   }
@@ -369,7 +369,24 @@ export async function upsertLectureApplication(input: {
   if (duplicateLecture) {
     return {
       success: false,
-      message: '같은 강의를 다른 슬롯에 중복으로 선택할 수 없습니다.',
+      message: '같은 세션을 다른 슬롯에 중복으로 선택할 수 없습니다.',
+      applications: bootstrapData.applications,
+    };
+  }
+
+  const applicationCount = bootstrapData.applications.filter((application) => application.lectureId === input.lectureId).length;
+  const existing = bootstrapData.applications.find(
+    (application) =>
+      application.participantId === input.participantId &&
+      application.day === input.day &&
+      application.timeSlot === input.timeSlot,
+  );
+  const isKeepingCurrentLecture = existing?.lectureId === input.lectureId;
+
+  if (!isKeepingCurrentLecture && isLectureFull(lecture, applicationCount)) {
+    return {
+      success: false,
+      message: '정원이 모두 찬 세션입니다. 다른 세션을 선택해 주세요.',
       applications: bootstrapData.applications,
     };
   }
@@ -395,13 +412,6 @@ export async function upsertLectureApplication(input: {
       applications: nextApplications,
     };
   }
-
-  const existing = bootstrapData.applications.find(
-    (application) =>
-      application.participantId === input.participantId &&
-      application.day === input.day &&
-      application.timeSlot === input.timeSlot,
-  );
 
   const payload = {
     id: existing?.id ?? createApplicationId(true),

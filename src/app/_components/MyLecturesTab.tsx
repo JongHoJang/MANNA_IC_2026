@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Application, DayKey, Lecture, Participant, TimeSlot } from '@/types';
 import { DAY_LABELS, DAY_ORDER } from '@/utils/tickets';
-import { formatLectureLocation } from '@/utils/lectures';
+import { getLectureCapacityLabel, isLectureFull, normalizePlaceLabel } from '@/utils/lectures';
 import { splitLectureHeading } from './home-helpers';
 import { PencilMark, PersonMark, PinMark } from './home-marks';
 import { ModalPortal } from './ModalPortal';
@@ -14,9 +14,9 @@ const sessionSlots = [
 ] as const;
 
 const DAY_TICKET_LABELS: Record<DayKey, string> = {
-  Day1: 'Day1 (6/23 화)',
-  Day2: 'Day2 (6/24 수)',
-  Day3: 'Day3 (6/25 목)',
+  Day1: '(6/23 화)',
+  Day2: '(6/24 수)',
+  Day3: '(6/25 목)',
 };
 
 export function MyLecturesTab({
@@ -55,6 +55,7 @@ export function MyLecturesTab({
   const [pendingLectureBySlot, setPendingLectureBySlot] = useState<Partial<Record<TimeSlot, string>>>({});
   const [confirmTarget, setConfirmTarget] = useState<{ slot: TimeSlot; lectureId: string } | null>(null);
   const [purchaseNoticeDay, setPurchaseNoticeDay] = useState<DayKey | null>(null);
+  const [fullCapacityNotice, setFullCapacityNotice] = useState(false);
   const slotApplicationsRef = useRef(slotApplications);
   const lectureItemRefs = useRef<Partial<Record<TimeSlot, Partial<Record<string, HTMLButtonElement | null>>>>>({});
 
@@ -67,6 +68,7 @@ export function MyLecturesTab({
     setPendingLectureBySlot({});
     setConfirmTarget(null);
     setPurchaseNoticeDay(null);
+    setFullCapacityNotice(false);
   }, [activeDay]);
 
   useEffect(() => {
@@ -138,13 +140,34 @@ export function MyLecturesTab({
     const sequence = dayLectures.findIndex((lecture) => lecture.id === lectureId);
     return sequence >= 0 ? `선택세션 ${sequence + 1}.` : '';
   }
+
+  function renderLectureLocation(lecture: Lecture) {
+    const applicationCount = lectureApplicationCountMap[lecture.id] ?? 0;
+    const capacityLabel = getLectureCapacityLabel(lecture, applicationCount);
+    const lectureIsFull = isLectureFull(lecture, applicationCount);
+
+    return (
+      <span className="leading-[1.35]">
+        {normalizePlaceLabel(lecture.location)}
+        {capacityLabel ? (
+          <>
+            {' '}
+            <span aria-hidden="true">• </span>
+            <span className={lectureIsFull ? 'font-semibold text-[#c43d2f]' : 'text-[color:var(--muted)]'}>({capacityLabel})</span>
+            {lectureIsFull ? <span className="font-semibold text-[#c43d2f]"> 정원초과</span> : null}
+          </>
+        ) : null}
+      </span>
+    );
+  }
+
   const isConfirmingChange = Boolean(confirmApplication);
 
   return (
     <div className="space-y-5">
       <section className="space-y-4 px-1 pt-1">
         <h2 className="max-w-[15ch] text-[2rem] font-semibold leading-[1.06] tracking-[-0.05em] text-[color:var(--ink)] sm:text-[2.15rem]">
-          선택세션 강의를
+          듣고 싶은 세션을
           <br />
           선택해주세요.
         </h2>
@@ -198,8 +221,8 @@ export function MyLecturesTab({
           const isExpanded = expandedSlot === slot;
           const actionLabel = !isExpanded
             ? hasExistingApplication
-              ? '강의 변경하기'
-              : '강의 선택하기'
+              ? '세션 변경하기'
+              : '세션 선택하기'
             : '닫기';
 
           return (
@@ -235,12 +258,12 @@ export function MyLecturesTab({
                         </span>
                         <span className="flex items-start gap-1.5">
                           <PinMark />
-                          <span className="leading-[1.35]">{formatLectureLocation(displayedLecture, lectureApplicationCountMap[displayedLecture.id] ?? 0)}</span>
+                          {renderLectureLocation(displayedLecture)}
                         </span>
                       </div>
                     </div>
                   ) : (
-                    <p className="mt-2 text-sm text-[color:var(--muted)]">아직 강의가 선택되지 않았습니다.</p>
+                    <p className="mt-2 text-sm text-[color:var(--muted)]">아직 세션이 선택되지 않았습니다.</p>
                   )}
                 </button>
               </div>
@@ -276,6 +299,9 @@ export function MyLecturesTab({
                       const itemPendingInSlot = pendingLectureId === item.id;
                       const itemApplication = dayApplications.find((value) => value.lectureId === item.id);
                       const itemIsSelectedElsewhere = itemApplication && itemApplication.timeSlot !== slot;
+                      const itemApplicationCount = lectureApplicationCountMap[item.id] ?? 0;
+                      const itemIsFull = isLectureFull(item, itemApplicationCount);
+                      const itemIsCurrentSelection = application?.lectureId === item.id;
                       const itemHeading = splitLectureHeading(item.title);
                       const itemSessionLabel = `선택세션 ${index + 1}.`;
                       const itemDisabled = Boolean(itemIsSelectedElsewhere);
@@ -292,7 +318,12 @@ export function MyLecturesTab({
                           }}
                           type="button"
                           onClick={() => {
-                            if (itemDisabled) {
+                            if (itemIsSelectedElsewhere) {
+                              return;
+                            }
+
+                            if (itemIsFull && !itemIsCurrentSelection) {
+                              setFullCapacityNotice(true);
                               return;
                             }
 
@@ -318,7 +349,7 @@ export function MyLecturesTab({
                             'flex w-full items-start justify-between gap-3 rounded-[16px] border px-3 py-3 text-left transition',
                             itemPendingInSlot
                               ? 'border-[color:var(--accent)] bg-[rgba(238,202,126,0.2)] shadow-[0_8px_22px_rgba(37,24,17,0.06)]'
-                              : itemIsSelectedElsewhere
+                              : itemIsSelectedElsewhere || (itemIsFull && !itemIsCurrentSelection)
                                 ? 'cursor-not-allowed border-[color:var(--line)] bg-white/55 opacity-45'
                                 : 'border-[color:var(--line)] bg-white hover:bg-white',
                           ].join(' ')}
@@ -343,7 +374,7 @@ export function MyLecturesTab({
                               </p>
                               <p className="flex items-start gap-1.5">
                                 <PinMark />
-                                <span className="leading-[1.35]">{formatLectureLocation(item, lectureApplicationCountMap[item.id] ?? 0)}</span>
+                                {renderLectureLocation(item)}
                               </p>
                             </div>
                             {itemIsSelectedElsewhere ? (
@@ -375,13 +406,13 @@ export function MyLecturesTab({
               {isConfirmingChange ? '변경 확인' : '선택 확인'}
             </p>
             <h3 className="mt-3 text-xl font-semibold leading-tight">
-              {isConfirmingChange ? '변경 전후를 확인해 주세요' : '이 강의를 신청하시겠어요?'}
+              {isConfirmingChange ? '변경 전후를 확인해 주세요' : '이 세션을 신청하시겠어요?'}
             </h3>
 
             {isConfirmingChange ? (
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-[22px] border border-[color:var(--line)] bg-white px-4 py-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[color:var(--muted)]">기존 선택 강의</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[color:var(--muted)]">기존 선택 세션</p>
                   {currentLecture ? (
                     <div className="mt-2">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[color:var(--muted)]">
@@ -400,17 +431,17 @@ export function MyLecturesTab({
                         </p>
                         <p className="flex items-start gap-1.5">
                           <PinMark />
-                          <span className="leading-[1.35]">{formatLectureLocation(currentLecture, lectureApplicationCountMap[currentLecture.id] ?? 0)}</span>
+                          {renderLectureLocation(currentLecture)}
                         </p>
                       </div>
                     </div>
                   ) : (
-                    <p className="mt-2 text-sm text-[color:var(--muted)]">아직 선택된 강의가 없습니다.</p>
+                    <p className="mt-2 text-sm text-[color:var(--muted)]">아직 선택된 세션이 없습니다.</p>
                   )}
                 </div>
 
                 <div className="rounded-[22px] border border-[color:var(--accent)] bg-[rgba(238,202,126,0.24)] px-4 py-4 shadow-[0_10px_24px_rgba(238,202,126,0.18)]">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[color:var(--ink)]/72">변경할 강의</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[color:var(--ink)]/72">변경할 세션</p>
                   {confirmLecture ? (
                     <div className="mt-2">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[color:var(--ink)]/72">
@@ -429,7 +460,7 @@ export function MyLecturesTab({
                         </p>
                         <p className="flex items-start gap-1.5">
                           <PinMark />
-                          <span className="leading-[1.35]">{formatLectureLocation(confirmLecture, lectureApplicationCountMap[confirmLecture.id] ?? 0)}</span>
+                          {renderLectureLocation(confirmLecture)}
                         </p>
                       </div>
                     </div>
@@ -438,7 +469,7 @@ export function MyLecturesTab({
               </div>
             ) : confirmLecture ? (
               <div className="mt-4 rounded-[22px] border border-[color:var(--accent)] bg-[rgba(238,202,126,0.24)] px-4 py-4 shadow-[0_10px_24px_rgba(238,202,126,0.18)]">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[color:var(--ink)]/72">신청할 강의</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[color:var(--ink)]/72">신청할 세션</p>
                 <div className="mt-2">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[color:var(--ink)]/72">
                     {splitLectureHeading(confirmLecture.title).label}
@@ -456,7 +487,7 @@ export function MyLecturesTab({
                     </p>
                     <p className="flex items-start gap-1.5">
                       <PinMark />
-                      <span className="leading-[1.35]">{formatLectureLocation(confirmLecture, lectureApplicationCountMap[confirmLecture.id] ?? 0)}</span>
+                      {renderLectureLocation(confirmLecture)}
                     </p>
                   </div>
                 </div>
@@ -493,13 +524,37 @@ export function MyLecturesTab({
               <p className="font-display text-xs uppercase tracking-[0.35em] text-[color:var(--muted)]">티켓 안내</p>
               <h3 className="mt-3 text-xl font-semibold leading-tight">{DAY_LABELS[purchaseNoticeDay]} 티켓을 구매해주세요.</h3>
               <p className="mt-3 text-sm leading-6 text-[color:var(--muted)]">
-                구매한 날짜만 선택세션 강의를 신청하거나 변경할 수 있습니다.
+                구매한 날짜만 세션을 신청하거나 변경할 수 있습니다.
               </p>
 
               <div className="mt-5">
                 <button
                   type="button"
                   onClick={() => setPurchaseNoticeDay(null)}
+                  className="w-full rounded-[2px] bg-[color:var(--ink)] px-4 py-3 text-sm font-semibold text-[color:var(--paper)]"
+                >
+                  확인
+                </button>
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
+      ) : null}
+
+      {fullCapacityNotice ? (
+        <ModalPortal>
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 px-4 pb-4 pt-10 backdrop-blur-[2px] sm:items-center">
+            <div className="w-full max-w-[420px] rounded-[28px] border-[2px] border-[color:var(--ink)] bg-[color:var(--panel)] p-5 shadow-[6px_6px_0_rgba(36,27,22,0.2)]">
+              <p className="font-display text-xs uppercase tracking-[0.35em] text-[color:var(--muted)]">정원 안내</p>
+              <h3 className="mt-3 text-xl font-semibold leading-tight">정원이 모두 찬 세션입니다.</h3>
+              <p className="mt-3 text-sm leading-6 text-[color:var(--muted)]">
+                다른 세션을 선택해 주세요.
+              </p>
+
+              <div className="mt-5">
+                <button
+                  type="button"
+                  onClick={() => setFullCapacityNotice(false)}
                   className="w-full rounded-[2px] bg-[color:var(--ink)] px-4 py-3 text-sm font-semibold text-[color:var(--paper)]"
                 >
                   확인

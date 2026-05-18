@@ -118,7 +118,7 @@ export const useAppStore = create<AppStore>()(
         if (lecture.day !== day) {
           return {
             success: false,
-            message: '선택한 날짜와 강의 날짜가 일치하지 않습니다.',
+            message: '선택한 날짜와 세션 날짜가 일치하지 않습니다.',
           };
         }
 
@@ -146,7 +146,7 @@ export const useAppStore = create<AppStore>()(
         if (!response.ok || !payload.success) {
           return {
             success: false,
-            message: payload.message ?? '강의 신청 저장에 실패했습니다.',
+            message: payload.message ?? '세션 신청 저장에 실패했습니다.',
           };
         }
 

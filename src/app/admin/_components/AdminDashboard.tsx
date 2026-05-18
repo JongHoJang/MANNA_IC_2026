@@ -109,8 +109,8 @@ export function AdminDashboard({
             <section className="rounded-[24px] border border-[color:var(--line)] bg-[color:var(--paper)] p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-lg font-semibold">강의별 신청 현황</h2>
-                  <p className="mt-1 text-xs text-[color:var(--muted)]">날짜 또는 전체 기준으로 강의 신청 인원을 확인합니다.</p>
+                  <h2 className="text-lg font-semibold">세션별 신청 현황</h2>
+                  <p className="mt-1 text-xs text-[color:var(--muted)]">날짜 또는 전체 기준으로 세션 신청 인원을 확인합니다.</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <FilterPill active={dayFilter === 'all'} onClick={() => onDayFilterChange('all')}>

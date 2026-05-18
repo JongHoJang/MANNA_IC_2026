@@ -4,7 +4,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'manna IC',
-  description: 'Mock data 기반 선택강의 신청 MVP',
+  description: 'Mock data 기반 선택세션 신청 MVP',
 };
 
 export default function RootLayout({

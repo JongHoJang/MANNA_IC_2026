@@ -244,7 +244,7 @@ export function TimetableTab({
                   <div className="mt-4 space-y-2.5">
                     {selectedSlot ? (
                       <div className="rounded-[2px] border border-[color:var(--ink)]/16 bg-white/55 px-3 py-3">
-                        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#8a6800]">내가 선택한 강의</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#8a6800]">내가 선택한 세션</p>
                         {selectedApplication ? (
                           <>
                             <p className="mt-1 text-sm font-semibold leading-6 text-[color:var(--ink)]">
@@ -267,7 +267,7 @@ export function TimetableTab({
                             </div>
                           </>
                         ) : (
-                          <p className="mt-1 text-sm font-semibold text-[color:var(--ink)]/62">강의를 선택해주세요.</p>
+                          <p className="mt-1 text-sm font-semibold text-[color:var(--ink)]/62">세션을 선택해주세요.</p>
                         )}
                         <button
                           type="button"
@@ -281,7 +281,7 @@ export function TimetableTab({
                           }}
                           className="mt-3 inline-flex items-center text-sm font-semibold text-[color:var(--ink)] underline decoration-[color:var(--ink)]/35 underline-offset-[5px] transition hover:text-[color:var(--ink)]/72"
                         >
-                          <span>{selectedApplication ? '변경하러가기 >' : '강의 선택하러 가기 >'}</span>
+                          <span>{selectedApplication ? '변경하러가기 >' : '세션 선택하러 가기 >'}</span>
                         </button>
                       </div>
                     ) : null}
@@ -326,7 +326,7 @@ export function TimetableTab({
               <p className="font-display text-xs uppercase tracking-[0.35em] text-[color:var(--muted)]">티켓 안내</p>
               <h3 className="mt-3 text-xl font-semibold leading-tight">{DAY_LABELS[purchaseNoticeDay]} 티켓을 구매해주세요.</h3>
               <p className="mt-3 text-sm leading-6 text-[color:var(--muted)]">
-                구매한 날짜만 선택세션 강의를 신청하거나 변경할 수 있습니다.
+                구매한 날짜만 세션을 신청하거나 변경할 수 있습니다.
               </p>
 
               <div className="mt-5">

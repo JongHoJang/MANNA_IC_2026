@@ -44,7 +44,7 @@ export function BottomNav({
               시간표
             </TabButton>
             <TabButton active={activeTab === 'my-lectures'} onClick={() => onChange('my-lectures')}>
-              내 강의
+              내 세션
             </TabButton>
             <TabButton active={activeTab === 'guide'} onClick={() => onChange('guide')}>
               안내

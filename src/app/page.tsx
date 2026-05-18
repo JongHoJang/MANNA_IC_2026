@@ -19,6 +19,7 @@ import { TimetableTab } from './_components/TimetableTab';
 import { GuideTab } from './_components/GuideTab';
 
 const INSTAGRAM_URL = 'https://www.instagram.com/manna_ic?igsh=MThpZm1lNzM1MXNuaw==';
+const FULL_CAPACITY_PREVIEW_LECTURE_TITLE = '장비 없어도 할 수 있는 교회 음향 실전 워크숍';
 
 export default function HomePage() {
   const router = useRouter();
@@ -53,12 +54,20 @@ export default function HomePage() {
     [lectures],
   );
   const lectureApplicationCountMap = useMemo(
-    () =>
-      applications.reduce<Record<string, number>>((accumulator, application) => {
+    () => {
+      const counts = applications.reduce<Record<string, number>>((accumulator, application) => {
         accumulator[application.lectureId] = (accumulator[application.lectureId] ?? 0) + 1;
         return accumulator;
-      }, {}),
-    [applications],
+      }, {});
+      const previewLecture = lectures.find((lecture) => lecture.title === FULL_CAPACITY_PREVIEW_LECTURE_TITLE);
+
+      if (previewLecture?.capacity) {
+        counts[previewLecture.id] = previewLecture.capacity;
+      }
+
+      return counts;
+    },
+    [applications, lectures],
   );
 
   useEffect(() => {

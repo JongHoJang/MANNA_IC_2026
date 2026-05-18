@@ -54,3 +54,19 @@ export function normalizePlaceLabel(place: string | null | undefined) {
 
   return normalizedPlace;
 }
+
+export function isLectureFull(lecture: Lecture, applicationCount: number) {
+  if (!lecture.capacity || lecture.capacity <= 0) {
+    return false;
+  }
+
+  return applicationCount >= lecture.capacity;
+}
+
+export function getLectureCapacityLabel(lecture: Lecture, applicationCount: number) {
+  if (!lecture.capacity || lecture.capacity <= 0) {
+    return null;
+  }
+
+  return `${applicationCount}/${lecture.capacity}`;
+}
