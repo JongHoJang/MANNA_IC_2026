@@ -3,11 +3,17 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import type { Application, DayKey, Lecture, TimetableDay, TimeSlot } from '@/types';
 import { formatLectureLocation, normalizePlaceLabel } from '@/utils/lectures';
-import { DAY_LABELS } from '@/utils/tickets';
+import { DAY_LABELS, DAY_ORDER } from '@/utils/tickets';
 import { isBreakSession, isTimeInsideRange } from './home-helpers';
 import { PersonMark, PinMark, PinMiniMark } from './home-marks';
 import { ModalPortal } from './ModalPortal';
 import { RoughBorder } from './RoughBorder';
+
+const DAY_TICKET_LABELS: Record<DayKey, string> = {
+  Day1: '(6/23 화)',
+  Day2: '(6/24 수)',
+  Day3: '(6/25 목)',
+};
 
 export function TimetableTab({
   activeDay,
@@ -47,41 +53,59 @@ export function TimetableTab({
 
   return (
     <div className="space-y-5">
-      <section className="relative overflow-hidden rounded-[2px] border-[2px] border-[color:var(--ink)] bg-[#f3efe8] px-4 py-5 shadow-[4px_4px_0_rgba(36,27,22,0.18)]">
-        <div className="relative">
-          <h2 className="max-w-[10ch] text-[2.35rem] font-semibold leading-[0.92] tracking-[-0.07em] text-[color:var(--ink)]">
-            <span className="block text-[1.95rem] leading-[0.96]">{activeDay.title.split(' ')[0]}</span>
-            <span className="block">{activeDay.title.split(' ').slice(1).join(' ')}</span>
-          </h2>
-          <p className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-[color:var(--ink)]/80">
-            <span>@{activeDay.date}</span>
-          </p>
-        </div>
+      <section className="space-y-4 px-1 pt-1">
+        <h2 className="max-w-[15ch] text-[2rem] font-semibold leading-[1.06] tracking-[-0.05em] text-[color:var(--ink)] sm:text-[2.15rem]">
+          만나 IC 2026 시간표를
+          <br />
+          확인해보세요.
+        </h2>
       </section>
 
-      <div className="border-b border-[rgba(36,27,22,0.18)] pb-2">
-        <div className="flex items-end gap-8">
-          {timetableDays.map((day) => {
-            const isActive = selectedDay === day.day;
-            const dayNumber = day.day.replace('Day', '').padStart(2, '0');
+      <div className="grid grid-cols-3 gap-3">
+        {DAY_ORDER.map((day) => {
+          const purchased = purchasedDays.includes(day);
+          const isActive = selectedDay === day;
 
-            return (
-              <button
-                key={day.day}
-                type="button"
-                onClick={() => onSelectDay(day.day)}
-                className={[
-                  'relative pb-2 pt-4 text-[1.02rem] font-semibold tracking-[0.18em] transition',
-                  isActive ? 'text-[color:var(--ink)]' : 'text-[rgba(36,27,22,0.34)]',
-                ].join(' ')}
-              >
-                <span className="block uppercase">DAY {dayNumber}</span>
-                {isActive ? <span className="absolute inset-x-0 -bottom-[9px] h-[2px] bg-[color:var(--ink)]" /> : null}
-              </button>
-            );
-          })}
-        </div>
+          return (
+            <button
+              key={day}
+              type="button"
+              onClick={() => {
+                if (!purchased) {
+                  setPurchaseNoticeDay(day);
+                  return;
+                }
+
+                onSelectDay(day);
+              }}
+              className={[
+                'h-14 rounded-[2px] border-2 px-2 py-2 text-sm font-semibold leading-[1.05] transition',
+                isActive
+                  ? 'border-[color:var(--ink)] bg-[color:var(--ink)] text-[color:var(--paper)]'
+                  : purchased
+                    ? 'border-[color:var(--line)] bg-[color:var(--paper)] text-[color:var(--ink)]'
+                    : 'border-dashed border-[color:var(--line)] bg-white/60 text-[color:var(--muted)]/40',
+              ].join(' ')}
+            >
+              <span className="block text-[16px]">{DAY_LABELS[day]}</span>
+              <span className="mt-1 block text-[13px] font-medium tracking-[0.01em] opacity-75">{DAY_TICKET_LABELS[day]}</span>
+            </button>
+          );
+        })}
       </div>
+
+      <section className="px-1 pt-1">
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-[1rem] font-black leading-none tracking-[-0.05em] text-[color:var(--ink)] sm:text-[1.1rem]">
+            {activeDay.title.split(' ')[0]}
+          </p>
+          <p className="text-sm font-semibold text-[color:var(--ink)]/82">@{activeDay.date}</p>
+        </div>
+        <h3 className="mt-2 text-[1.9rem] font-black leading-[0.92] tracking-[-0.075em] text-[color:var(--ink)] sm:text-[2.2rem]">
+          {activeDay.title.split(' ').slice(1).join(' ')}
+        </h3>
+        <div className="mt-4 h-px w-full bg-[rgba(36,27,22,0.82)]" />
+      </section>
 
       <section className="space-y-4">
         <div className="space-y-3">
@@ -102,30 +126,12 @@ export function TimetableTab({
                   ref={isCurrent ? currentRowRef : null}
                   key={`${activeDay.day}-${row.time}-${index}`}
                   className={[
-                    'relative rounded-[2px] px-4 py-4 transition',
+                    'relative px-4 py-4 transition',
                     isCurrent
-                      ? 'bg-[rgba(238,202,126,0.22)]'
+                      ? 'bg-transparent'
                       : 'opacity-55',
                   ].join(' ')}
                 >
-                  {!isCurrent ? <RoughBorder stroke="rgba(36,27,22,0.82)" strokeWidth={1.7} roughness={1.25} bowing={1.35} /> : null}
-                  {isCurrent ? (
-                    <span
-                      aria-hidden="true"
-                      className="pointer-events-none absolute inset-0 rounded-[2px]"
-                      style={{
-                        backgroundImage: [
-                          'repeating-linear-gradient(90deg, rgba(255,255,255,0.96) 0 14px, transparent 14px 22px)',
-                          'repeating-linear-gradient(180deg, rgba(255,255,255,0.96) 0 14px, transparent 14px 22px)',
-                          'repeating-linear-gradient(90deg, rgba(255,255,255,0.96) 0 14px, transparent 14px 22px)',
-                          'repeating-linear-gradient(180deg, rgba(255,255,255,0.96) 0 14px, transparent 14px 22px)',
-                        ].join(', '),
-                        backgroundPosition: 'top left, top right, bottom left, top left',
-                        backgroundSize: '100% 2px, 2px 100%, 100% 2px, 2px 100%',
-                        backgroundRepeat: 'no-repeat',
-                      }}
-                    />
-                  ) : null}
                   <div className="flex items-center gap-3">
                     <div className="flex min-w-0 flex-1 items-center gap-3">
                       <div className={['h-px flex-1', isCurrent ? 'bg-[rgba(36,27,22,0.24)]' : 'bg-[rgba(36,27,22,0.14)]'].join(' ')} />
@@ -147,31 +153,21 @@ export function TimetableTab({
                     ) : null}
                   </div>
 
-                  <div className="mt-3 grid grid-cols-[72px_1fr_auto] items-center gap-3">
+                  <div className="mt-3 grid grid-cols-[72px_1fr_72px] items-center gap-3">
                     <div className={['text-sm font-semibold', isCurrent ? 'text-[color:var(--ink)]' : 'text-[color:var(--ink)]/50'].join(' ')}>
                       {row.time}
                     </div>
                     <div className="min-w-0 text-center">
                       <p
                         className={[
-                          'text-[11px] font-medium tracking-[0.08em]',
-                          isCurrent ? 'text-[color:var(--ink)]' : 'text-[color:var(--ink)]/68',
+                          'text-[13px] font-medium tracking-[0.01em]',
+                          isCurrent ? 'text-[color:var(--ink)]/78' : 'text-[color:var(--ink)]/62',
                         ].join(' ')}
                       >
                         {displayLabelText}
-                        {titleText ? <span className="mx-1">·</span> : null}
-                        {titleText ? <span>{titleText}</span> : null}
                       </p>
                     </div>
-                    <p
-                      className={[
-                        'inline-flex items-center justify-end gap-1.5 text-[11px] font-medium tracking-[0.08em]',
-                        isCurrent ? 'text-[color:var(--ink)]/80' : 'text-[color:var(--ink)]/58',
-                      ].join(' ')}
-                    >
-                      <PinMiniMark />
-                      <span>{normalizePlaceLabel(row.place)}</span>
-                    </p>
+                    <div />
                   </div>
                 </article>
               );
@@ -216,8 +212,8 @@ export function TimetableTab({
                     <div className="min-w-0 space-y-0.5">
                       <p
                         className={[
-                          'text-[11px] font-semibold uppercase tracking-[0.22em]',
-                          isCurrent ? 'text-[color:var(--muted)]/58' : 'text-[color:var(--muted)]',
+                          'text-[13px] font-medium uppercase tracking-[0.01em]',
+                          isCurrent ? 'text-[color:var(--muted)]/78' : 'text-[color:var(--muted)]/74',
                         ].join(' ')}
                       >
                         {displayLabelText}
@@ -225,8 +221,8 @@ export function TimetableTab({
                       {titleText && !selectedSlot ? (
                         <p
                           className={[
-                            'whitespace-pre-line text-[1.22rem] font-semibold leading-[1.1] tracking-[-0.05em]',
-                            isCurrent ? 'text-[color:var(--ink)]/62' : 'text-[color:var(--ink)]',
+                            'whitespace-pre-line text-[20px] font-bold leading-[1.12] tracking-tight',
+                            isCurrent ? 'text-[color:var(--ink)]/74' : 'text-[color:var(--ink)]',
                           ].join(' ')}
                         >
                           {titleText}
@@ -244,13 +240,13 @@ export function TimetableTab({
                   <div className="mt-4 space-y-2.5">
                     {selectedSlot ? (
                       <div className="rounded-[2px] border border-[color:var(--ink)]/16 bg-white/55 px-3 py-3">
-                        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#8a6800]">내가 선택한 세션</p>
+                        <p className="text-xs font-black uppercase tracking-[0.01em] text-[#8a6800]">내가 선택한 세션</p>
                         {selectedApplication ? (
                           <>
-                            <p className="mt-1 text-sm font-semibold leading-6 text-[color:var(--ink)]">
+                            <p className="mt-1 text-[16px] font-semibold leading-[1.35] tracking-tight text-[color:var(--ink)]">
                               {selectedApplication.lecture.title}
                             </p>
-                            <div className="mt-1 space-y-1.5 text-[11px] text-[color:var(--ink)]/62">
+                            <div className="mt-1 space-y-1.5 text-[14px] font-medium text-[color:var(--ink)]/72">
                               <p className="flex min-w-0 items-start gap-1.5">
                                 <PersonMark />
                                 <span className="min-w-0">
@@ -289,8 +285,8 @@ export function TimetableTab({
                       {formatSpeakerLabel(row.speaker, row.position) ? (
                         <p
                           className={[
-                            'flex min-w-0 items-start gap-1.5 text-[11px] font-medium tracking-[0.08em]',
-                            isCurrent ? 'text-[color:var(--ink)]/42' : 'text-[color:var(--ink)]/68',
+                            'flex min-w-0 items-start gap-1.5 text-[14px] font-medium tracking-normal',
+                            isCurrent ? 'text-[color:var(--ink)]/56' : 'text-[color:var(--ink)]/76',
                           ].join(' ')}
                         >
                           <PersonMark />
@@ -302,8 +298,8 @@ export function TimetableTab({
                       {selectedSlot ? null : (
                         <p
                           className={[
-                            'inline-flex items-start gap-1.5 text-[11px] font-medium tracking-[0.08em]',
-                            isCurrent ? 'text-[color:var(--ink)]/42' : 'text-[color:var(--ink)]/68',
+                            'inline-flex items-start gap-1.5 text-[14px] font-medium tracking-normal',
+                            isCurrent ? 'text-[color:var(--ink)]/56' : 'text-[color:var(--ink)]/76',
                           ].join(' ')}
                         >
                           <PinMiniMark />

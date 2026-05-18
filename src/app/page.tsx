@@ -273,7 +273,7 @@ export default function HomePage() {
             <Image src="/icons/instagram_icon.svg" alt="" width={22} height={22} className="h-[22px] w-[22px]" aria-hidden="true" />
           </a>
 
-          <p className="font-display text-[1.02rem] font-semibold tracking-[0.14em] text-[color:var(--ink)]">manna-ic 2026</p>
+          <p className="font-display text-[1.02rem] font-semibold tracking-[0.14em] text-[color:var(--ink)]">MANNA IC 2026</p>
 
           <button
             type="button"

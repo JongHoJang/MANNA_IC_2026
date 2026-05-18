@@ -167,9 +167,9 @@ export function MyLecturesTab({
     <div className="space-y-5">
       <section className="space-y-4 px-1 pt-1">
         <h2 className="max-w-[15ch] text-[2rem] font-semibold leading-[1.06] tracking-[-0.05em] text-[color:var(--ink)] sm:text-[2.15rem]">
-          듣고 싶은 세션을
+          듣고 싶은 선택세션을
           <br />
-          선택해주세요.
+          골라주세요.
         </h2>
 
       </section>
@@ -200,8 +200,8 @@ export function MyLecturesTab({
                     : 'border-dashed border-[color:var(--line)] bg-white/60 text-[color:var(--muted)]/40',
               ].join(' ')}
             >
-              <span className="block">{DAY_LABELS[day]}</span>
-              <span className="mt-1 block text-[11px] font-medium tracking-[-0.01em] opacity-75">{DAY_TICKET_LABELS[day]}</span>
+              <span className="block text-[16px]">{DAY_LABELS[day]}</span>
+              <span className="mt-1 block text-[13px] font-medium tracking-[0.01em] opacity-75">{DAY_TICKET_LABELS[day]}</span>
             </button>
           );
         })}
@@ -241,14 +241,14 @@ export function MyLecturesTab({
                   {displayedLecture ? (
                     <div className="space-y-3">
                       <div className="min-w-0">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[color:var(--muted)]">
+                        <p className="text-[13px] font-medium uppercase tracking-[0.01em] text-[color:var(--muted)]/74">
                           {getLectureSequenceLabel(displayedLecture.id)}
                         </p>
-                        <p className="mt-2 text-[1.18rem] font-semibold leading-[1.18] tracking-[-0.045em] text-[color:var(--ink)]">
+                        <p className="mt-2 text-[20px] font-bold leading-[1.14] tracking-tight text-[color:var(--ink)]">
                           {splitLectureHeading(displayedLecture.title).title}
                         </p>
                       </div>
-                      <div className="space-y-1.5 text-sm text-[color:var(--muted)]">
+                      <div className="space-y-1.5 text-[14px] font-medium text-[color:var(--muted)]">
                         <span className="flex items-start gap-1.5">
                           <PersonMark />
                           <span className="leading-[1.35]">
@@ -357,14 +357,14 @@ export function MyLecturesTab({
                         >
                           <div className="min-w-0">
                             {itemSessionLabel ? (
-                              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[color:var(--muted)]">
+                              <p className="text-[13px] font-medium uppercase tracking-[0.01em] text-[color:var(--muted)]/74">
                                 {itemSessionLabel}
                               </p>
                             ) : null}
-                            <h4 className="mt-1 text-sm font-semibold leading-snug text-[color:var(--ink)]">
+                            <h4 className="mt-1 text-[20px] font-bold leading-[1.14] tracking-tight text-[color:var(--ink)]">
                               {itemHeading.title}
                             </h4>
-                            <div className="mt-2 space-y-1.5 text-xs text-[color:var(--muted)]">
+                            <div className="mt-2 space-y-1.5 text-[14px] font-medium text-[color:var(--muted)]">
                               <p className="flex items-start gap-1.5">
                                 <PersonMark />
                                 <span className="leading-[1.35]">
@@ -378,12 +378,8 @@ export function MyLecturesTab({
                               </p>
                             </div>
                             {itemIsSelectedElsewhere ? (
-                              <span className="mt-2 inline-flex rounded-full bg-[#e8e8e8] px-2.5 py-1 text-[11px] font-medium text-[color:var(--muted)]">
+                              <span className="mt-2 inline-flex rounded-full bg-[#e8e8e8] px-2.5 py-1 text-xs font-medium text-[color:var(--muted)]">
                                 다른 타임 선택됨
-                              </span>
-                            ) : itemPendingInSlot ? (
-                              <span className="mt-2 inline-flex rounded-full bg-[color:var(--accent-soft)] px-2.5 py-1 text-[11px] font-medium text-[color:var(--ink)]">
-                                선택 예정
                               </span>
                             ) : null}
                           </div>
@@ -412,16 +408,16 @@ export function MyLecturesTab({
             {isConfirmingChange ? (
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-[22px] border border-[color:var(--line)] bg-white px-4 py-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[color:var(--muted)]">기존 선택 세션</p>
+                  <p className="text-[13px] font-medium uppercase tracking-[0.01em] text-[color:var(--muted)]/74">기존 선택 세션</p>
                   {currentLecture ? (
                     <div className="mt-2">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[color:var(--muted)]">
+                      <p className="text-[13px] font-medium uppercase tracking-[0.01em] text-[color:var(--muted)]/74">
                         {splitLectureHeading(currentLecture.title).label}
                       </p>
-                      <p className="mt-1 text-sm font-semibold leading-snug text-[color:var(--ink)]">
+                      <p className="mt-1 text-[20px] font-bold leading-[1.14] tracking-tight text-[color:var(--ink)]">
                         {splitLectureHeading(currentLecture.title).title}
                       </p>
-                      <div className="mt-2 space-y-1 text-xs text-[color:var(--muted)]">
+                      <div className="mt-2 space-y-1 text-[14px] font-medium text-[color:var(--muted)]">
                         <p className="flex items-start gap-1.5">
                           <PersonMark />
                           <span className="leading-[1.35]">
@@ -441,16 +437,16 @@ export function MyLecturesTab({
                 </div>
 
                 <div className="rounded-[22px] border border-[color:var(--accent)] bg-[rgba(238,202,126,0.24)] px-4 py-4 shadow-[0_10px_24px_rgba(238,202,126,0.18)]">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[color:var(--ink)]/72">변경할 세션</p>
+                  <p className="text-[13px] font-medium uppercase tracking-[0.01em] text-[color:var(--ink)]/74">변경할 세션</p>
                   {confirmLecture ? (
                     <div className="mt-2">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[color:var(--ink)]/72">
+                      <p className="text-[13px] font-medium uppercase tracking-[0.01em] text-[color:var(--ink)]/74">
                         {splitLectureHeading(confirmLecture.title).label}
                       </p>
-                      <p className="mt-1 text-sm font-semibold leading-snug text-[color:var(--ink)]">
+                      <p className="mt-1 text-[20px] font-bold leading-[1.14] tracking-tight text-[color:var(--ink)]">
                         {splitLectureHeading(confirmLecture.title).title}
                       </p>
-                      <div className="mt-2 space-y-1 text-xs text-[color:var(--muted)]">
+                      <div className="mt-2 space-y-1 text-[14px] font-medium text-[color:var(--muted)]">
                         <p className="flex items-start gap-1.5">
                           <PersonMark />
                           <span className="leading-[1.35]">
@@ -469,15 +465,15 @@ export function MyLecturesTab({
               </div>
             ) : confirmLecture ? (
               <div className="mt-4 rounded-[22px] border border-[color:var(--accent)] bg-[rgba(238,202,126,0.24)] px-4 py-4 shadow-[0_10px_24px_rgba(238,202,126,0.18)]">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[color:var(--ink)]/72">신청할 세션</p>
+                <p className="text-[13px] font-medium uppercase tracking-[0.01em] text-[color:var(--ink)]/74">신청할 세션</p>
                 <div className="mt-2">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[color:var(--ink)]/72">
+                  <p className="text-[13px] font-medium uppercase tracking-[0.01em] text-[color:var(--ink)]/74">
                     {splitLectureHeading(confirmLecture.title).label}
                   </p>
-                  <p className="mt-1 text-sm font-semibold leading-snug text-[color:var(--ink)]">
+                  <p className="mt-1 text-[20px] font-bold leading-[1.14] tracking-tight text-[color:var(--ink)]">
                     {splitLectureHeading(confirmLecture.title).title}
                   </p>
-                  <div className="mt-2 space-y-1 text-xs text-[color:var(--muted)]">
+                  <div className="mt-2 space-y-1 text-[14px] font-medium text-[color:var(--muted)]">
                     <p className="flex items-start gap-1.5">
                       <PersonMark />
                       <span className="leading-[1.35]">

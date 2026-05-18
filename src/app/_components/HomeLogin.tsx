@@ -21,7 +21,7 @@ export function HomeLogin({
       <section className="w-full space-y-5">
         <div className="px-2 text-center">
           <p className="font-display text-[0.85rem] font-semibold uppercase tracking-[0.28em] text-[color:var(--ink)]/58">
-            manna-ic 2026
+            MANNA IC 2026
           </p>
           <h1 className="mt-3 text-[2.5rem] font-black leading-[1.04] tracking-[-0.07em] text-[color:var(--ink)]">
             만나IC 2026 컨퍼런스
