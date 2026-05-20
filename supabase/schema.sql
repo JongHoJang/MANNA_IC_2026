@@ -3,6 +3,8 @@ create table if not exists public.participants (
   name text not null,
   phone text not null,
   position text,
+  email text,
+  organization text,
   ticket_info text,
   day1 boolean not null default false,
   day2 boolean not null default false,
@@ -14,6 +16,7 @@ create table if not exists public.participants (
 create table if not exists public.lectures (
   id text primary key,
   day text not null check (day in ('Day1', 'Day2', 'Day3')),
+  session_no int4 check (session_no is null or session_no > 0),
   date date not null,
   title text not null,
   speaker text not null,

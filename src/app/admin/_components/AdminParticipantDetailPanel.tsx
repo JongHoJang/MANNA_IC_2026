@@ -1,6 +1,6 @@
 import { ModalPortal } from '@/app/_components/ModalPortal';
 import type { DayKey, Participant, TimeSlot, Lecture } from '@/types';
-import { formatLectureSpeakerMeta, TIME_SLOTS } from '@/utils/lectures';
+import { TIME_SLOTS } from '@/utils/lectures';
 import { DAY_ORDER, SESSION_DAY_LABELS, TICKET_DAY_LABELS } from '@/utils/tickets';
 
 type FormState = {
@@ -32,6 +32,14 @@ function isDayActive(form: FormState, day: DayKey) {
   }
 
   return form.day3;
+}
+
+function getLectureOptionLabel(lecture: Lecture) {
+  if (lecture.sessionNo && lecture.sessionNo > 0) {
+    return `선택세션 ${lecture.sessionNo}. ${lecture.title}`;
+  }
+
+  return lecture.title;
 }
 
 export function AdminParticipantDetailPanel({
@@ -200,7 +208,7 @@ export function AdminParticipantDetailPanel({
                                         value={lecture.id}
                                         disabled={selectedOtherLectureId === lecture.id && sessionDraft[day][timeSlot] !== lecture.id}
                                       >
-                                        {lecture.title} · {formatLectureSpeakerMeta(lecture.speaker, lecture.position)}
+                                        {getLectureOptionLabel(lecture)}
                                       </option>
                                     ))}
                                   </select>

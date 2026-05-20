@@ -376,12 +376,15 @@ function formatTimetableLabel(label: string) {
 
 function resolveSelectionSlot(label: string, title?: string, place?: string): TimeSlot | null {
   const normalizedLabel = label.trim();
+  const compactLabel = normalizedLabel.replace(/\s+/g, '');
   const normalizedTitle = title?.trim() ?? '';
   const normalizedPlace = place?.trim() ?? '';
 
   if (
     normalizedLabel === '선택세션1' ||
     normalizedLabel === '첫번째 선택세션' ||
+    normalizedLabel === '첫 번째 선택세션' ||
+    compactLabel === '첫번째선택세션' ||
     (normalizedLabel.includes('선택세션') && normalizedLabel.includes('1'))
   ) {
     return '1타임';
@@ -390,21 +393,25 @@ function resolveSelectionSlot(label: string, title?: string, place?: string): Ti
   if (
     normalizedLabel === '선택세션2' ||
     normalizedLabel === '두번째 선택세션' ||
+    normalizedLabel === '두 번째 선택세션' ||
+    compactLabel === '두번째선택세션' ||
     (normalizedLabel.includes('선택세션') && normalizedLabel.includes('2'))
   ) {
     return '2타임';
   }
 
-  if (normalizedLabel.includes('첫번째 선택세션')) {
+  if (normalizedLabel.includes('첫번째 선택세션') || normalizedLabel.includes('첫 번째 선택세션') || compactLabel.includes('첫번째선택세션')) {
     return '1타임';
   }
 
-  if (normalizedLabel.includes('두번째 선택세션')) {
+  if (normalizedLabel.includes('두번째 선택세션') || normalizedLabel.includes('두 번째 선택세션') || compactLabel.includes('두번째선택세션')) {
     return '2타임';
   }
 
   if (normalizedTitle === '참가신청 시 선택한 세션' || normalizedPlace === '각 선택세션 장소') {
-    return normalizedLabel.includes('2') || normalizedLabel.includes('두번째') ? '2타임' : '1타임';
+    return normalizedLabel.includes('2') || normalizedLabel.includes('두번째') || normalizedLabel.includes('두 번째') || compactLabel.includes('두번째')
+      ? '2타임'
+      : '1타임';
   }
 
   return null;

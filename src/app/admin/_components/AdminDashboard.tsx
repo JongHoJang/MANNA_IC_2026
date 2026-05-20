@@ -251,7 +251,7 @@ export function AdminDashboard({
 }) {
   const completionFilterOptions: ToggleOption<FilterState['completion']>[] = [
     { label: '전체', value: 'all' },
-    { label: '선택세션 완료', value: 'complete' },
+    { label: '완료', value: 'complete' },
     { label: '미완료', value: 'incomplete' },
   ];
 

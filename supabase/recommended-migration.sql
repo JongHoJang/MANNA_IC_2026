@@ -42,7 +42,9 @@ create unique index if not exists timetable_rows_day_sort_order_idx
 -- 3) Optional admin flag on participants.
 -- If you don't want to keep using `position like '%admin%'`, add this.
 alter table public.participants
-  add column if not exists is_admin boolean not null default false;
+  add column if not exists is_admin boolean not null default false,
+  add column if not exists email text,
+  add column if not exists organization text;
 
 -- 4) Example updates for lectures.
 -- Replace these with your actual row ids if you already have lecture data synced.

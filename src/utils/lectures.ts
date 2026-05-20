@@ -24,7 +24,7 @@ function splitMetaParts(value: string | null | undefined) {
   return (value ?? '')
     .split('/')
     .map((part) => part.trim())
-    .filter(Boolean);
+    .filter((part) => Boolean(part) && part !== '비었음');
 }
 
 export function formatLectureSpeakerMeta(speaker: string | null | undefined, position?: string | null) {
@@ -38,9 +38,28 @@ export function formatLectureSpeakerMeta(speaker: string | null | undefined, pos
   return speakers
     .map((speakerItem, index) => {
       const positionItem = positions[index];
-      return positionItem ? `${speakerItem} | ${positionItem}` : speakerItem;
+      return positionItem ? `${speakerItem}(${positionItem})` : speakerItem;
     })
     .join(', ');
+}
+
+function normalizeParticipantPosition(position: string | null | undefined) {
+  return (position ?? '').replace(/\s+/g, '');
+}
+
+export function getLectureEligibilityMessage(lecture: Lecture, participantPosition: string | null | undefined) {
+  const normalizedTitle = lecture.title.replace(/\s+/g, '');
+  const normalizedPosition = normalizeParticipantPosition(participantPosition);
+
+  if (normalizedTitle.includes('목사님출입금지')) {
+    return normalizedPosition === '사모' ? null : '사모만 신청할 수 있는 세션입니다.';
+  }
+
+  if (normalizedTitle.includes('커피챗')) {
+    return normalizedPosition === '신학생' ? null : '신학생만 신청할 수 있는 세션입니다.';
+  }
+
+  return null;
 }
 
 export function decorateLectures(rawLectures: Lecture[]): LectureWithSlot[] {

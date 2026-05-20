@@ -1,7 +1,7 @@
 import { applications as mockApplications, lectures as mockLectures, participants as mockParticipants, timetableDays as mockTimetableDays } from '@/mocks';
 import type { Application, DayKey, Lecture, Participant, TimetableDay, TimeSlot } from '@/types';
 import { createSession, findParticipantById, findParticipantByLogin, getRoleForParticipant, normalizePhone } from '@/utils/session';
-import { findLectureById, isLectureFull } from '@/utils/lectures';
+import { findLectureById, getLectureEligibilityMessage, isLectureFull } from '@/utils/lectures';
 import { createSupabaseServerClient, hasSupabaseServerEnv } from '@/lib/supabase/server';
 
 type BootstrapData = {
@@ -165,7 +165,11 @@ function validateParticipantSessionSelections(
   bootstrapData: BootstrapData,
   participantId: string,
   selections: ParticipantSessionSelectionInput[],
+  participantPosition?: string | null,
 ) {
+  const participant = findParticipantById(participantId, bootstrapData.participants);
+  const effectiveParticipantPosition = participantPosition ?? participant?.position ?? '';
+
   for (const selection of selections) {
     if (!selection.lectureId) {
       continue;
@@ -179,6 +183,12 @@ function validateParticipantSessionSelections(
 
     if (lecture.day !== selection.day) {
       return '선택한 날짜와 세션 날짜가 일치하지 않습니다.';
+    }
+
+    const eligibilityMessage = getLectureEligibilityMessage(lecture, effectiveParticipantPosition);
+
+    if (eligibilityMessage) {
+      return eligibilityMessage;
     }
 
     const duplicateLecture = bootstrapData.applications.find(
@@ -506,6 +516,16 @@ export async function upsertLectureApplication(input: {
     };
   }
 
+  const eligibilityMessage = getLectureEligibilityMessage(lecture, participant.position);
+
+  if (eligibilityMessage) {
+    return {
+      success: false,
+      message: eligibilityMessage,
+      applications: bootstrapData.applications,
+    };
+  }
+
   const duplicateLecture = bootstrapData.applications.find(
     (application) =>
       application.participantId === input.participantId &&
@@ -667,7 +687,7 @@ async function updateParticipantSessions(
 
 export async function updateAdminParticipant(participantId: string, input: ParticipantUpdateInput): Promise<ParticipantUpdateResult | null> {
   const bootstrapData = await loadBootstrapData();
-  const validationError = validateParticipantSessionSelections(bootstrapData, participantId, input.sessions);
+  const validationError = validateParticipantSessionSelections(bootstrapData, participantId, input.sessions, input.position);
 
   if (validationError) {
     return null;

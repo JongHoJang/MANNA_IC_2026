@@ -180,6 +180,16 @@ export function GuideTab() {
         </div>
       </section>
 
+      <section className="rounded-[2px] border-[2px] border-[color:var(--ink)] bg-[rgba(238,202,126,0.28)] px-5 py-6 shadow-[3px_3px_0_rgba(36,27,22,0.12)]">
+        <p className="text-[13px] font-bold uppercase tracking-normal text-[#8a6800]">EVENT</p>
+        <h3 className="mt-3 text-[24px] font-bold leading-[1.35] tracking-tight text-[color:var(--ink)]">
+          개인컵을 챙겨오시면 만나IC 특별 스티커팩을 선물로 드립니다.
+        </h3>
+        <p className="mt-3 text-[15px] leading-7 text-[color:var(--ink)]/74">
+          텀블러를 챙겨오시면 종이컵을 아끼며 아낌없이 커피를 드실 수 있습니다.
+        </p>
+      </section>
+
       {showShuttleModal ? (
         <ModalPortal>
           <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 px-4 pb-4 pt-10 backdrop-blur-[2px] sm:items-center">

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Application, DayKey, Lecture, Participant, TimeSlot } from '@/types';
 import { DAY_LABELS, DAY_ORDER } from '@/utils/tickets';
-import { getLectureCapacityLabel, isLectureFull, normalizePlaceLabel } from '@/utils/lectures';
+import { formatLectureSpeakerMeta, getLectureCapacityLabel, getLectureEligibilityMessage, isLectureFull, normalizePlaceLabel, sortLecturesBySessionNo } from '@/utils/lectures';
 import { splitLectureHeading } from './home-helpers';
 import { PencilMark, PersonMark, PinMark } from './home-marks';
 import { ModalPortal } from './ModalPortal';
@@ -50,7 +50,10 @@ export function MyLecturesTab({
   const slotApplications = useMemo(() => {
     return new Map(dayApplications.map((application) => [application.timeSlot, application] as const));
   }, [dayApplications]);
-  const dayLectures = useMemo(() => lectures.filter((lecture) => lecture.day === activeDay), [activeDay, lectures]);
+  const dayLectures = useMemo(
+    () => sortLecturesBySessionNo(lectures.filter((lecture) => lecture.day === activeDay)),
+    [activeDay, lectures],
+  );
   const [expandedSlot, setExpandedSlot] = useState<TimeSlot | null>(null);
   const [pendingLectureBySlot, setPendingLectureBySlot] = useState<Partial<Record<TimeSlot, string>>>({});
   const [confirmTarget, setConfirmTarget] = useState<{ slot: TimeSlot; lectureId: string } | null>(null);
@@ -134,11 +137,6 @@ export function MyLecturesTab({
     }
 
     setConfirmTarget(null);
-  }
-
-  function getLectureSequenceLabel(lectureId: string) {
-    const sequence = dayLectures.findIndex((lecture) => lecture.id === lectureId);
-    return sequence >= 0 ? `선택세션 ${sequence + 1}.` : '';
   }
 
   function renderLectureLocation(lecture: Lecture) {
@@ -241,19 +239,26 @@ export function MyLecturesTab({
                   {displayedLecture ? (
                     <div className="space-y-3">
                       <div className="min-w-0">
-                        <p className="text-[13px] font-medium uppercase tracking-[0.01em] text-[color:var(--muted)]/74">
-                          {getLectureSequenceLabel(displayedLecture.id)}
-                        </p>
-                        <p className="mt-2 text-[20px] font-bold leading-[1.14] tracking-tight text-[color:var(--ink)]">
-                          {splitLectureHeading(displayedLecture.title).title}
-                        </p>
+                        {(() => {
+                          const heading = splitLectureHeading(displayedLecture.title, displayedLecture.sessionNo);
+
+                          return (
+                            <>
+                              <p className="text-[13px] font-medium uppercase tracking-[0.01em] text-[color:var(--muted)]/74">
+                                {heading.label}
+                              </p>
+                              <p className="mt-2 text-[20px] font-bold leading-[1.14] tracking-tight text-[color:var(--ink)]">
+                                {heading.title}
+                              </p>
+                            </>
+                          );
+                        })()}
                       </div>
                       <div className="space-y-1.5 text-[14px] font-medium text-[color:var(--muted)]">
                         <span className="flex items-start gap-1.5">
                           <PersonMark />
                           <span className="leading-[1.35]">
-                            {displayedLecture.speaker}
-                            {displayedLecture.position && displayedLecture.position !== '비었음' ? ` · ${displayedLecture.position}` : ''}
+                            {formatLectureSpeakerMeta(displayedLecture.speaker, displayedLecture.position)}
                           </span>
                         </span>
                         <span className="flex items-start gap-1.5">
@@ -295,16 +300,16 @@ export function MyLecturesTab({
               {isExpanded ? (
                 <div className="border-t-2 border-[color:var(--ink)]/12 bg-[#fcfbf8] px-4 py-4">
                   <div className="space-y-2">
-                    {dayLectures.map((item, index) => {
+                    {dayLectures.map((item) => {
                       const itemPendingInSlot = pendingLectureId === item.id;
                       const itemApplication = dayApplications.find((value) => value.lectureId === item.id);
                       const itemIsSelectedElsewhere = itemApplication && itemApplication.timeSlot !== slot;
+                      const itemEligibilityMessage = getLectureEligibilityMessage(item, currentParticipant.position);
                       const itemApplicationCount = lectureApplicationCountMap[item.id] ?? 0;
                       const itemIsFull = isLectureFull(item, itemApplicationCount);
                       const itemIsCurrentSelection = application?.lectureId === item.id;
-                      const itemHeading = splitLectureHeading(item.title);
-                      const itemSessionLabel = `선택세션 ${index + 1}.`;
-                      const itemDisabled = Boolean(itemIsSelectedElsewhere);
+                      const itemHeading = splitLectureHeading(item.title, item.sessionNo);
+                      const itemDisabled = Boolean(itemIsSelectedElsewhere || itemEligibilityMessage);
 
                       return (
                         <button
@@ -319,6 +324,10 @@ export function MyLecturesTab({
                           type="button"
                           onClick={() => {
                             if (itemIsSelectedElsewhere) {
+                              return;
+                            }
+
+                            if (itemEligibilityMessage) {
                               return;
                             }
 
@@ -349,16 +358,16 @@ export function MyLecturesTab({
                             'flex w-full items-start justify-between gap-3 rounded-[16px] border px-3 py-3 text-left transition',
                             itemPendingInSlot
                               ? 'border-[color:var(--accent)] bg-[rgba(238,202,126,0.2)] shadow-[0_8px_22px_rgba(37,24,17,0.06)]'
-                              : itemIsSelectedElsewhere || (itemIsFull && !itemIsCurrentSelection)
+                              : itemIsSelectedElsewhere || itemEligibilityMessage || (itemIsFull && !itemIsCurrentSelection)
                                 ? 'cursor-not-allowed border-[color:var(--line)] bg-white/55 opacity-45'
                                 : 'border-[color:var(--line)] bg-white hover:bg-white',
                           ].join(' ')}
                           disabled={itemDisabled}
                         >
                           <div className="min-w-0">
-                            {itemSessionLabel ? (
+                            {itemHeading.label ? (
                               <p className="text-[13px] font-medium uppercase tracking-[0.01em] text-[color:var(--muted)]/74">
-                                {itemSessionLabel}
+                                {itemHeading.label}
                               </p>
                             ) : null}
                             <h4 className="mt-1 text-[20px] font-bold leading-[1.14] tracking-tight text-[color:var(--ink)]">
@@ -368,8 +377,7 @@ export function MyLecturesTab({
                               <p className="flex items-start gap-1.5">
                                 <PersonMark />
                                 <span className="leading-[1.35]">
-                                  {item.speaker}
-                                  {item.position && item.position !== '비었음' ? ` · ${item.position}` : ''}
+                                  {formatLectureSpeakerMeta(item.speaker, item.position)}
                                 </span>
                               </p>
                               <p className="flex items-start gap-1.5">
@@ -380,6 +388,11 @@ export function MyLecturesTab({
                             {itemIsSelectedElsewhere ? (
                               <span className="mt-2 inline-flex rounded-full bg-[#e8e8e8] px-2.5 py-1 text-xs font-medium text-[color:var(--muted)]">
                                 다른 타임 선택됨
+                              </span>
+                            ) : null}
+                            {itemEligibilityMessage ? (
+                              <span className="mt-2 inline-flex rounded-full bg-[#e8e8e8] px-2.5 py-1 text-xs font-medium text-[color:var(--muted)]">
+                                {itemEligibilityMessage}
                               </span>
                             ) : null}
                           </div>
@@ -412,17 +425,16 @@ export function MyLecturesTab({
                   {currentLecture ? (
                     <div className="mt-2">
                       <p className="text-[13px] font-medium uppercase tracking-[0.01em] text-[color:var(--muted)]/74">
-                        {splitLectureHeading(currentLecture.title).label}
+                        {splitLectureHeading(currentLecture.title, currentLecture.sessionNo).label}
                       </p>
                       <p className="mt-1 text-[20px] font-bold leading-[1.14] tracking-tight text-[color:var(--ink)]">
-                        {splitLectureHeading(currentLecture.title).title}
+                        {splitLectureHeading(currentLecture.title, currentLecture.sessionNo).title}
                       </p>
                       <div className="mt-2 space-y-1 text-[14px] font-medium text-[color:var(--muted)]">
                         <p className="flex items-start gap-1.5">
                           <PersonMark />
                           <span className="leading-[1.35]">
-                            {currentLecture.speaker}
-                            {currentLecture.position && currentLecture.position !== '비었음' ? ` · ${currentLecture.position}` : ''}
+                            {formatLectureSpeakerMeta(currentLecture.speaker, currentLecture.position)}
                           </span>
                         </p>
                         <p className="flex items-start gap-1.5">
@@ -441,17 +453,16 @@ export function MyLecturesTab({
                   {confirmLecture ? (
                     <div className="mt-2">
                       <p className="text-[13px] font-medium uppercase tracking-[0.01em] text-[color:var(--ink)]/74">
-                        {splitLectureHeading(confirmLecture.title).label}
+                        {splitLectureHeading(confirmLecture.title, confirmLecture.sessionNo).label}
                       </p>
                       <p className="mt-1 text-[20px] font-bold leading-[1.14] tracking-tight text-[color:var(--ink)]">
-                        {splitLectureHeading(confirmLecture.title).title}
+                        {splitLectureHeading(confirmLecture.title, confirmLecture.sessionNo).title}
                       </p>
                       <div className="mt-2 space-y-1 text-[14px] font-medium text-[color:var(--muted)]">
                         <p className="flex items-start gap-1.5">
                           <PersonMark />
                           <span className="leading-[1.35]">
-                            {confirmLecture.speaker}
-                            {confirmLecture.position && confirmLecture.position !== '비었음' ? ` · ${confirmLecture.position}` : ''}
+                            {formatLectureSpeakerMeta(confirmLecture.speaker, confirmLecture.position)}
                           </span>
                         </p>
                         <p className="flex items-start gap-1.5">
@@ -468,17 +479,16 @@ export function MyLecturesTab({
                 <p className="text-[13px] font-medium uppercase tracking-[0.01em] text-[color:var(--ink)]/74">신청할 세션</p>
                 <div className="mt-2">
                   <p className="text-[13px] font-medium uppercase tracking-[0.01em] text-[color:var(--ink)]/74">
-                    {splitLectureHeading(confirmLecture.title).label}
+                    {splitLectureHeading(confirmLecture.title, confirmLecture.sessionNo).label}
                   </p>
                   <p className="mt-1 text-[20px] font-bold leading-[1.14] tracking-tight text-[color:var(--ink)]">
-                    {splitLectureHeading(confirmLecture.title).title}
+                    {splitLectureHeading(confirmLecture.title, confirmLecture.sessionNo).title}
                   </p>
                   <div className="mt-2 space-y-1 text-[14px] font-medium text-[color:var(--muted)]">
                     <p className="flex items-start gap-1.5">
                       <PersonMark />
                       <span className="leading-[1.35]">
-                        {confirmLecture.speaker}
-                        {confirmLecture.position && confirmLecture.position !== '비었음' ? ` · ${confirmLecture.position}` : ''}
+                        {formatLectureSpeakerMeta(confirmLecture.speaker, confirmLecture.position)}
                       </span>
                     </p>
                     <p className="flex items-start gap-1.5">
