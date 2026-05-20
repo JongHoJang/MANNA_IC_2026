@@ -7,7 +7,6 @@ import { DAY_LABELS, DAY_ORDER } from '@/utils/tickets';
 import { isBreakSession, isTimeInsideRange } from './home-helpers';
 import { PersonMark, PinMark, PinMiniMark } from './home-marks';
 import { ModalPortal } from './ModalPortal';
-import { splitLectureHeading } from './home-helpers';
 import { formatLectureSpeakerMeta } from '@/utils/lectures';
 import { RoughBorder } from './RoughBorder';
 
@@ -126,48 +125,60 @@ export function TimetableTab({
                   ref={isCurrent ? currentRowRef : null}
                   key={`${activeDay.day}-${row.time}-${index}`}
                   className={[
-                    'relative px-4 py-4 transition',
+                    'relative rounded-[2px] px-4 py-4 transition',
                     isCurrent
-                      ? 'bg-transparent'
+                      ? 'bg-[rgba(238,202,126,0.22)]'
                       : 'opacity-55',
                   ].join(' ')}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="flex min-w-0 flex-1 items-center gap-3">
-                      <div className={['h-px flex-1', isCurrent ? 'bg-[rgba(36,27,22,0.24)]' : 'bg-[rgba(36,27,22,0.14)]'].join(' ')} />
-                      <p
-                        className={[
-                          'shrink-0 text-[10px] font-semibold uppercase tracking-[0.28em]',
-                          isCurrent ? 'text-[color:var(--ink)]' : 'text-[color:var(--ink)]/45',
-                        ].join(' ')}
-                      >
-                        BREAK TIME
-                      </p>
-                      <div className={['h-px flex-1', isCurrent ? 'bg-[rgba(36,27,22,0.24)]' : 'bg-[rgba(36,27,22,0.14)]'].join(' ')} />
-                    </div>
-                    {isCurrent ? (
-                      <span className="inline-flex items-center gap-2 rounded-full border border-[color:var(--ink)]/18 bg-[color:var(--ink)] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[color:var(--paper)]">
-                        <span className="h-2 w-2 rounded-full bg-[color:var(--paper)]" />
-                        현재 휴식
-                      </span>
-                    ) : null}
+                  {isCurrent ? (
+                    <span
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-0 rounded-[2px]"
+                      style={{
+                        backgroundImage: [
+                          'repeating-linear-gradient(90deg, rgba(255,255,255,0.96) 0 14px, transparent 14px 22px)',
+                          'repeating-linear-gradient(180deg, rgba(255,255,255,0.96) 0 14px, transparent 14px 22px)',
+                          'repeating-linear-gradient(90deg, rgba(255,255,255,0.96) 0 14px, transparent 14px 22px)',
+                          'repeating-linear-gradient(180deg, rgba(255,255,255,0.96) 0 14px, transparent 14px 22px)',
+                        ].join(', '),
+                        backgroundPosition: 'top left, top right, bottom left, top left',
+                        backgroundSize: '100% 2px, 2px 100%, 100% 2px, 2px 100%',
+                        backgroundRepeat: 'no-repeat',
+                      }}
+                    />
+                  ) : null}
+                  <div className="mx-auto flex w-full max-w-[360px] items-center justify-center gap-3">
+                    <div className={['h-px flex-1', isCurrent ? 'bg-[rgba(36,27,22,0.24)]' : 'bg-[rgba(36,27,22,0.14)]'].join(' ')} />
+                    <p
+                      className={[
+                        'shrink-0 text-[12px] font-semibold uppercase tracking-[0.22em]',
+                        isCurrent ? 'text-[color:var(--ink)]' : 'text-[color:var(--ink)]/45',
+                      ].join(' ')}
+                    >
+                      BREAK TIME
+                    </p>
+                    <div className={['h-px flex-1', isCurrent ? 'bg-[rgba(36,27,22,0.24)]' : 'bg-[rgba(36,27,22,0.14)]'].join(' ')} />
                   </div>
 
-                  <div className="mt-3 grid grid-cols-[72px_1fr_72px] items-center gap-3">
-                    <div className={['text-sm font-semibold', isCurrent ? 'text-[color:var(--ink)]' : 'text-[color:var(--ink)]/50'].join(' ')}>
+                  <div className="relative mt-5 min-h-[36px]">
+                    <div className={['absolute inset-y-0 left-0 flex w-20 items-center text-left text-[1rem] font-semibold', isCurrent ? 'text-[color:var(--ink)]' : 'text-[color:var(--ink)]/50'].join(' ')}>
                       {row.time}
                     </div>
-                    <div className="min-w-0 text-center">
-                      <p
-                        className={[
-                          'text-[13px] font-medium tracking-[0.01em]',
-                          isCurrent ? 'text-[color:var(--ink)]/78' : 'text-[color:var(--ink)]/62',
-                        ].join(' ')}
-                      >
-                        {displayLabelText}
-                      </p>
-                    </div>
-                    <div />
+                    <p
+                      className={[
+                        'mx-auto flex min-h-[36px] max-w-[360px] items-center justify-center text-center text-[19px] font-semibold leading-[1.12] tracking-tight',
+                        isCurrent ? 'text-[color:var(--ink)]' : 'text-[color:var(--ink)]/92',
+                      ].join(' ')}
+                    >
+                      {displayLabelText}
+                    </p>
+                    {isCurrent ? (
+                      <span className="absolute inset-y-0 right-0 inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#3f2418] px-2.5 py-1 text-[11px] font-semibold text-white">
+                        <span className="text-[10px]">●</span>
+                        휴식중
+                      </span>
+                    ) : null}
                   </div>
                 </article>
               );
@@ -240,26 +251,16 @@ export function TimetableTab({
                   <div className="mt-4 space-y-2.5">
                     {selectedSlot ? (
                       <div className="rounded-[2px] border border-[color:var(--ink)]/16 bg-white/55 px-3 py-3">
-                        <p className="text-xs font-black uppercase tracking-[0.01em] text-[#8a6800]">내가 선택한 세션</p>
                         {selectedApplication ? (
                           <>
-                            {(() => {
-                              const heading = splitLectureHeading(
-                                selectedApplication.lecture.title,
-                                selectedApplication.lecture.sessionNo,
-                              );
-
-                              return (
-                                <>
-                                  <p className="mt-1 text-[13px] font-medium uppercase tracking-[0.01em] text-[#8a6800]">
-                                    {heading.label}
-                                  </p>
-                                  <p className="mt-1 text-[16px] font-semibold leading-[1.35] tracking-tight text-[color:var(--ink)]">
-                                    {heading.title}
-                                  </p>
-                                </>
-                              );
-                            })()}
+                            <p className="text-[16px] font-semibold leading-[1.35] tracking-tight text-[color:var(--ink)]">
+                              {(() => {
+                                const lecture = selectedApplication.lecture;
+                                return lecture.sessionNo && lecture.sessionNo > 0
+                                  ? `${lecture.sessionNo}. ${lecture.title}`
+                                  : lecture.title;
+                              })()}
+                            </p>
                             <div className="mt-1 space-y-1.5 text-[14px] font-medium text-[color:var(--ink)]/72">
                               <p className="flex min-w-0 items-start gap-1.5">
                                 <PersonMark />

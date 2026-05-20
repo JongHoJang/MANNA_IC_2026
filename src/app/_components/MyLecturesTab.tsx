@@ -414,16 +414,16 @@ export function MyLecturesTab({
           <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 px-4 pb-4 pt-10 backdrop-blur-[2px] sm:items-center">
             <div className="w-full max-w-[420px] rounded-[28px] border-[2px] border-[color:var(--ink)] bg-[color:var(--panel)] p-5 shadow-[6px_6px_0_rgba(36,27,22,0.2)]">
             <p className="font-display text-xs uppercase tracking-[0.35em] text-[color:var(--muted)]">
-              {isConfirmingChange ? '변경 확인' : '선택 확인'}
+              {isConfirmingChange ? '선택 세션 변경' : '선택 확인'}
             </p>
             <h3 className="mt-3 text-xl font-semibold leading-tight">
-              {isConfirmingChange ? '변경 전후를 확인해 주세요' : '이 세션을 신청하시겠어요?'}
+              {isConfirmingChange ? '현재 선택한 세션이 아래와 같이 변경됩니다.' : '이 세션을 신청하시겠어요?'}
             </h3>
 
             {isConfirmingChange ? (
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="mt-4 grid gap-3">
                 <div className="rounded-[22px] border border-[color:var(--line)] bg-white px-4 py-4">
-                  <p className="text-[13px] font-medium uppercase tracking-[0.01em] text-[color:var(--muted)]/74">기존 선택 세션</p>
+                  <p className="text-[13px] font-medium uppercase tracking-[0.01em] text-[color:var(--muted)]/74">현재 세션</p>
                   {currentLecture ? (
                     <div className="mt-2">
                       <p className="text-[13px] font-medium uppercase tracking-[0.01em] text-[color:var(--muted)]/74">
@@ -450,8 +450,17 @@ export function MyLecturesTab({
                   )}
                 </div>
 
+                <div className="flex justify-center">
+                  <span
+                    aria-hidden="true"
+                    className="inline-flex items-center justify-center text-lg font-semibold text-[color:var(--muted)]"
+                  >
+                    ↓
+                  </span>
+                </div>
+
                 <div className="rounded-[22px] border border-[color:var(--accent)] bg-[rgba(238,202,126,0.24)] px-4 py-4 shadow-[0_10px_24px_rgba(238,202,126,0.18)]">
-                  <p className="text-[13px] font-medium uppercase tracking-[0.01em] text-[color:var(--ink)]/74">변경할 세션</p>
+                  <p className="text-[13px] font-medium uppercase tracking-[0.01em] text-[color:var(--ink)]/74">변경될 세션</p>
                   {confirmLecture ? (
                     <div className="mt-2">
                       <p className="text-[13px] font-medium uppercase tracking-[0.01em] text-[color:var(--ink)]/74">
