@@ -9,7 +9,7 @@ import {
   getMissingDaysForParticipant,
 } from '@/utils/applications';
 import { sortLecturesBySessionNo } from '@/utils/lectures';
-import { DAY_ORDER, SESSION_DAY_LABELS } from '@/utils/tickets';
+import { DAY_ORDER } from '@/utils/tickets';
 import { AdminParticipantDetailPanel } from './AdminParticipantDetailPanel';
 import { AdminParticipantTable, type AdminParticipantRow } from './AdminParticipantTable';
 import { AdminSessionStats } from './AdminSessionStats';
@@ -25,7 +25,6 @@ type FilterState = {
   ticket: DayKey[];
   completion: 'all' | 'complete' | 'incomplete';
   missingDay: 'all' | DayKey;
-  statsDay: 'all' | DayKey;
 };
 
 type FormState = {
@@ -263,7 +262,6 @@ export function AdminDashboard({
     ticket: [],
     completion: 'all',
     missingDay: 'all',
-    statsDay: 'all',
   });
   const [selectedParticipantId, setSelectedParticipantId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(buildFormState(null));
@@ -400,9 +398,7 @@ export function AdminDashboard({
     }, {} as Record<DayKey, Lecture[]>);
   }, [lectures]);
 
-  const visibleLectures = sortLecturesBySessionNo(
-    filters.statsDay === 'all' ? lectures : lectures.filter((lecture) => lecture.day === filters.statsDay),
-  );
+  const visibleLectures = sortLecturesBySessionNo(lectures);
   const lectureCountMap = getApplicationCountByLecture(applications);
   const lectureApplicantMap = useMemo(() => {
     return applications.reduce<Record<string, { first: Array<{ id: string; name: string; position: string; organization: string | null }>; second: Array<{ id: string; name: string; position: string; organization: string | null }> }>>((acc, application) => {
@@ -556,7 +552,7 @@ export function AdminDashboard({
   return (
     <main className="min-h-screen bg-[#f5f4ef]">
       <div className="grid min-h-screen lg:grid-cols-[226px_minmax(0,1fr)]">
-        <aside className="flex flex-col bg-[#303233] text-white">
+        <aside className="flex h-screen flex-col bg-[#303233] text-white lg:sticky lg:top-0">
           <div className="px-5 pb-6 pt-5">
             <div className="flex items-center gap-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#f3c94c] text-lg font-bold text-[#574300]">
@@ -570,7 +566,7 @@ export function AdminDashboard({
 
           <div className="space-y-1">
             <SidebarItem active={section === 'participants'} label="참가자 관리" onClick={() => setSection('participants')} />
-            <SidebarItem active={section === 'sessions'} label="세션 통계" onClick={() => setSection('sessions')} />
+            <SidebarItem active={section === 'sessions'} label="선택세션 통계" onClick={() => setSection('sessions')} />
           </div>
 
           <div className="mt-auto border-t border-white/10 px-4 py-5">
@@ -648,7 +644,7 @@ export function AdminDashboard({
             {section === 'sessions' ? (
               <>
                 <section>
-                  <h1 className="text-[2.15rem] font-semibold tracking-[-0.06em] text-[#232425]">선택세션 통계 KPI카드</h1>
+                  <h1 className="text-[2.15rem] font-semibold tracking-[-0.06em] text-[#232425]">선택세션 통계</h1>
                 </section>
 
                 <div className="grid gap-5 xl:grid-cols-4">
@@ -666,23 +662,10 @@ export function AdminDashboard({
                   <MetricCard label="신청 완료율" value={`${completionRate}%`} />
                 </div>
 
-                <section className="space-y-5">
+                <section className="space-y-5 pt-4">
                   <div>
                     <h2 className="text-[2.15rem] font-semibold tracking-[-0.06em] text-[#232425]">선택 세션 참가자 현황</h2>
                     <p className="mt-2 text-[14px] text-[#8a7d72]">선택 세션을 클릭하면 신청자 확인이 가능합니다.</p>
-                  </div>
-
-                  <div className="flex justify-end">
-                    <select
-                      value={filters.statsDay}
-                      onChange={(event) => setFilters((current) => ({ ...current, statsDay: event.target.value as FilterState['statsDay'] }))}
-                      className="rounded-[10px] border border-[#d8d4ca] bg-white px-4 py-3 text-[15px] outline-none"
-                    >
-                      <option value="all">전체 날짜</option>
-                      {DAY_ORDER.map((day) => (
-                        <option key={day} value={day}>{SESSION_DAY_LABELS[day]}</option>
-                      ))}
-                    </select>
                   </div>
 
                   <AdminSessionStats

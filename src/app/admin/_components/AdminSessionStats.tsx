@@ -2,7 +2,7 @@ import { ModalPortal } from '@/app/_components/ModalPortal';
 import { useState } from 'react';
 import type { Lecture } from '@/types';
 import { formatLectureSpeakerMeta, sortLecturesBySessionNo } from '@/utils/lectures';
-import { DAY_ORDER, SESSION_DAY_LABELS } from '@/utils/tickets';
+import { DAY_ORDER } from '@/utils/tickets';
 
 type ApplicantSummary = {
   id: string;
@@ -19,6 +19,10 @@ function getLectureDisplayTitle(lecture: Lecture) {
   return lecture.title;
 }
 
+function getDayHeading(day: Lecture['day']) {
+  return day.replace('Day', 'DAY ') + '.';
+}
+
 function SessionCard({
   lecture,
   count,
@@ -30,6 +34,11 @@ function SessionCard({
   applicants: { first: ApplicantSummary[]; second: ApplicantSummary[] };
   onOpen: () => void;
 }) {
+  const selectionCountLabel =
+    lecture.capacity && lecture.capacity > 0
+      ? (value: number) => `${value}/${lecture.capacity}명`
+      : (value: number) => `${value}명`;
+
   return (
     <button
       type="button"
@@ -46,11 +55,11 @@ function SessionCard({
         <div className="grid grid-cols-3 gap-2 text-[15px]">
           <div className="rounded-[8px] bg-[#f7f7f5] px-3 py-3">
             <p className="text-[12px] text-[#6f6258]">첫번째 선택</p>
-            <p className="mt-1 text-[1.15rem] font-semibold text-[#232425]">{applicants.first.length}명</p>
+            <p className="mt-1 text-[1.15rem] font-semibold text-[#232425]">{selectionCountLabel(applicants.first.length)}</p>
           </div>
           <div className="rounded-[8px] bg-[#f7f7f5] px-3 py-3">
             <p className="text-[12px] text-[#6f6258]">두번째 선택</p>
-            <p className="mt-1 text-[1.15rem] font-semibold text-[#232425]">{applicants.second.length}명</p>
+            <p className="mt-1 text-[1.15rem] font-semibold text-[#232425]">{selectionCountLabel(applicants.second.length)}</p>
           </div>
           <div className="rounded-[8px] bg-[#f7f7f5] px-3 py-3">
             <p className="text-[12px] text-[#6f6258]">합계</p>
@@ -88,9 +97,9 @@ export function AdminSessionStats({
           return (
             <section key={day}>
               <div className="border-b border-[#d8d2c7] pb-3">
-                <h2 className="text-[1.75rem] font-semibold tracking-[-0.05em] text-[#232425]">{SESSION_DAY_LABELS[day]}</h2>
+                <h2 className="text-[1.75rem] font-semibold tracking-[-0.05em] text-[#232425]">{getDayHeading(day)}</h2>
               </div>
-              <div className="mt-5 grid gap-5 lg:grid-cols-2">
+              <div className="mt-5 grid gap-5 xl:grid-cols-3">
                 {dayLectures.map((lecture) => (
                   <SessionCard
                     key={lecture.id}
