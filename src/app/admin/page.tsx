@@ -1,39 +1,27 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import type { FormEvent } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import type { DayKey } from '@/types';
 import { useAppStore } from '@/store/useAppStore';
-import { getUnsubmittedParticipants, getParticipantApplications } from '@/utils/applications';
-import { findParticipantById, isAdminParticipant } from '@/utils/session';
+import { findParticipantById } from '@/utils/session';
 import { LoadingShell } from '@/components/ui/LoadingShell';
 import { AdminDashboard } from './_components/AdminDashboard';
-import { AdminLogin } from './_components/AdminLogin';
 
 export default function AdminPage() {
   const router = useRouter();
   const session = useAppStore((state) => state.session);
   const participants = useAppStore((state) => state.participants);
-  const lectures = useAppStore((state) => state.lectures);
-  const applications = useAppStore((state) => state.applications);
   const hydrated = useAppStore((state) => state.hydrated);
   const bootstrapLoaded = useAppStore((state) => state.bootstrapLoaded);
   const bootstrapError = useAppStore((state) => state.bootstrapError);
   const fetchBootstrap = useAppStore((state) => state.fetchBootstrap);
-  const login = useAppStore((state) => state.login);
   const logout = useAppStore((state) => state.logout);
 
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [message, setMessage] = useState<string | null>(null);
-  const [dayFilter, setDayFilter] = useState<DayKey | 'all'>('all');
-
   useEffect(() => {
-    if (session?.role === 'user') {
+    if (!session || session.role === 'user') {
       router.replace('/');
     }
-  }, [router, session?.role]);
+  }, [router, session]);
 
   useEffect(() => {
     if (hydrated && !bootstrapLoaded) {
@@ -42,34 +30,6 @@ export default function AdminPage() {
   }, [bootstrapLoaded, fetchBootstrap, hydrated]);
 
   const currentParticipant = session ? findParticipantById(session.participantId, participants) : undefined;
-  const adminParticipant = participants.find(isAdminParticipant);
-  const attendeeParticipants = participants.filter((participant) => !isAdminParticipant(participant));
-  const submittedParticipants = attendeeParticipants.filter(
-    (participant) => getParticipantApplications(applications, participant.id).length > 0,
-  );
-  const unsubmittedParticipants = getUnsubmittedParticipants(participants, applications);
-  const attendeeApplicationTotal = applications.filter((application) =>
-    attendeeParticipants.some((participant) => participant.id === application.participantId),
-  ).length;
-
-  async function handleLoginSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const result = await login(name, phone);
-    setMessage(result.message);
-
-    if (!result.success) {
-      return;
-    }
-
-    if (result.role === 'user') {
-      router.replace('/');
-      return;
-    }
-
-    setName('');
-    setPhone('');
-  }
 
   if (!hydrated || !bootstrapLoaded) {
     return <LoadingShell outerClassName="min-h-screen max-w-6xl" />;
@@ -79,46 +39,23 @@ export default function AdminPage() {
     return <LoadingShell message={bootstrapError} outerClassName="min-h-screen max-w-6xl" />;
   }
 
-  if (session?.role === 'user') {
-    return <LoadingShell message="사용자 화면으로 이동 중입니다." outerClassName="min-h-screen max-w-6xl" />;
+  if (!session || session.role === 'user') {
+    return <LoadingShell message="로그인 화면으로 이동 중입니다." outerClassName="min-h-screen max-w-6xl" />;
   }
 
-  if (!currentParticipant || !adminParticipant) {
-    return (
-      <AdminLogin
-        name={name}
-        phone={phone}
-        message={message}
-        adminParticipant={adminParticipant}
-        onNameChange={setName}
-        onPhoneChange={setPhone}
-        onFillSample={() => {
-          if (!adminParticipant) {
-            return;
-          }
-
-          setName(adminParticipant.name);
-          setPhone(adminParticipant.phone);
-        }}
-        onSubmit={handleLoginSubmit}
-      />
-    );
+  if (!currentParticipant) {
+    return <LoadingShell message="어드민 정보를 불러오는 중입니다." outerClassName="min-h-screen max-w-6xl" />;
   }
 
   return (
     <AdminDashboard
-      lectures={lectures}
-      applications={applications}
-      attendeeParticipants={attendeeParticipants}
-      submittedParticipants={submittedParticipants}
-      unsubmittedParticipants={unsubmittedParticipants}
-      attendeeApplicationTotal={attendeeApplicationTotal}
-      dayFilter={dayFilter}
-      message={message}
-      onDayFilterChange={setDayFilter}
-      onLogout={() => {
+      message={null}
+      onLogout={async () => {
+        await fetch('/api/admin/logout', {
+          method: 'POST',
+        });
         logout();
-        setMessage('로그아웃했습니다.');
+        router.replace('/');
       }}
     />
   );

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { loginWithParticipantNameAndPhone } from '@/lib/repositories/app-data';
+import { ADMIN_SESSION_COOKIE, createAdminSessionToken } from '@/lib/admin-session';
 
 export async function POST(request: Request) {
   try {
@@ -16,12 +17,26 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       message: `${result.participant.name} 님으로 로그인했습니다.`,
       session: result.session,
       participant: result.participant,
     });
+
+    if (result.session.role === 'admin') {
+      response.cookies.set(ADMIN_SESSION_COOKIE, createAdminSessionToken(result.participant.id), {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        path: '/',
+        maxAge: 60 * 60 * 8,
+      });
+    } else {
+      response.cookies.delete(ADMIN_SESSION_COOKIE);
+    }
+
+    return response;
   } catch {
     return NextResponse.json(
       {

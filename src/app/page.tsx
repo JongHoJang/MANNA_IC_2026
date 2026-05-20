@@ -310,7 +310,6 @@ export default function HomePage() {
           {activeTab === 'timetable' ? (
             <TimetableTab
               activeDay={activeTimetable}
-              timetableDays={timetableDays}
               selectedDay={activeTimetableDay}
               currentTime={currentTime}
               timetableApplications={timetableApplications}
