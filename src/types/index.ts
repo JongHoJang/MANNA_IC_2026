@@ -9,18 +9,27 @@ export interface Participant {
   name: string;
   phone: string;
   ticketText: string;
+  ticketInfo?: string | null;
   position: string;
+  email?: string | null;
+  organization?: string | null;
+  day1?: boolean;
+  day2?: boolean;
+  day3?: boolean;
+  isAdmin?: boolean;
 }
 
 export interface Lecture {
   id: string;
   day: DayKey;
+  sessionNo?: number | null;
   date: string;
   title: string;
   speaker: string;
   position?: string;
   location: string;
   capacity?: number | null;
+  slotOrder?: number | null;
 }
 
 export interface LectureWithSlot extends Lecture {

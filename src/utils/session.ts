@@ -5,7 +5,7 @@ export function normalizePhone(phone: string) {
 }
 
 export function isAdminParticipant(participant: Participant) {
-  return participant.position.trim().toLowerCase().includes('admin');
+  return participant.isAdmin ?? participant.position.trim().toLowerCase().includes('admin');
 }
 
 export function getRoleForParticipant(participant: Participant): UserRole {

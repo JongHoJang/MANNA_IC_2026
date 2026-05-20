@@ -9,7 +9,7 @@ import {
   getMissingDaysForParticipant,
 } from '@/utils/applications';
 import { sortLecturesBySessionNo } from '@/utils/lectures';
-import { DAY_ORDER } from '@/utils/tickets';
+import { DAY_ORDER, SESSION_DAY_LABELS } from '@/utils/tickets';
 import { AdminParticipantDetailPanel } from './AdminParticipantDetailPanel';
 import { AdminParticipantTable, type AdminParticipantRow } from './AdminParticipantTable';
 import { AdminSessionStats } from './AdminSessionStats';

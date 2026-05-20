@@ -8,10 +8,16 @@ export const DAY_LABELS: Record<DayKey, string> = {
   Day3: 'Day 3',
 };
 
-const DAY_TICKET_LABELS: Record<DayKey, string> = {
-  Day1: 'Day1 (6/23 화)',
-  Day2: 'Day2 (6/24 수)',
-  Day3: 'Day3 (6/25 목)',
+export const TICKET_DAY_LABELS: Record<DayKey, string> = {
+  Day1: '티켓 Day1',
+  Day2: '티켓 Day2',
+  Day3: '티켓 Day3',
+};
+
+export const SESSION_DAY_LABELS: Record<DayKey, string> = {
+  Day1: '선택세션 Day1',
+  Day2: '선택세션 Day2',
+  Day3: '선택세션 Day3',
 };
 
 export function getPurchasedDays(ticketText: string): DayKey[] {
@@ -30,7 +36,7 @@ export function getPurchaseSummary(ticketText: string) {
     return '구매 정보 없음';
   }
 
-  return days.map((day) => DAY_LABELS[day]).join(' · ');
+  return days.map((day) => TICKET_DAY_LABELS[day]).join(' · ');
 }
 
 export function getPurchaseTicketSummary(ticketText: string) {
@@ -40,5 +46,5 @@ export function getPurchaseTicketSummary(ticketText: string) {
     return '참가일 없음';
   }
 
-  return `- ${days.map((day) => DAY_TICKET_LABELS[day]).join(' · ')}`;
+  return `- ${days.map((day) => TICKET_DAY_LABELS[day]).join(' · ')}`;
 }

@@ -1,20 +1,63 @@
-import type { DayKey, Lecture, LectureWithSlot, TimeSlot } from '@/types';
+import type { Lecture, LectureWithSlot, TimeSlot } from '@/types';
 import { DAY_ORDER } from './tickets';
 
 export const TIME_SLOTS: TimeSlot[] = ['1타임', '2타임'];
+export const TIME_SLOT_LABELS: Record<TimeSlot, string> = {
+  '1타임': '첫번째 선택세션',
+  '2타임': '두번째 선택세션',
+};
+
+export function sortLecturesBySessionNo<T extends Lecture>(lectures: T[]) {
+  return [...lectures].sort((a, b) => {
+    const left = a.sessionNo ?? Number.MAX_SAFE_INTEGER;
+    const right = b.sessionNo ?? Number.MAX_SAFE_INTEGER;
+
+    if (left !== right) {
+      return left - right;
+    }
+
+    return a.title.localeCompare(b.title, 'ko');
+  });
+}
+
+function splitMetaParts(value: string | null | undefined) {
+  return (value ?? '')
+    .split('/')
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+export function formatLectureSpeakerMeta(speaker: string | null | undefined, position?: string | null) {
+  const speakers = splitMetaParts(speaker);
+  const positions = splitMetaParts(position);
+
+  if (speakers.length === 0) {
+    return '';
+  }
+
+  return speakers
+    .map((speakerItem, index) => {
+      const positionItem = positions[index];
+      return positionItem ? `${speakerItem} | ${positionItem}` : speakerItem;
+    })
+    .join(', ');
+}
 
 export function decorateLectures(rawLectures: Lecture[]): LectureWithSlot[] {
-  const orderMap = new Map<DayKey, number>();
+  return DAY_ORDER.flatMap((day) => {
+    const dayLectures = sortLecturesBySessionNo(rawLectures.filter((lecture) => lecture.day === day));
+    const fallbackPivot = Math.ceil(dayLectures.length / 2);
 
-  return rawLectures.map((lecture) => {
-    const nextOrder = (orderMap.get(lecture.day) ?? 0) + 1;
-    orderMap.set(lecture.day, nextOrder);
-    const timeSlot = TIME_SLOTS[nextOrder - 1] ?? '2타임';
+    return dayLectures.map((lecture, index) => {
+      const slotOrder = lecture.slotOrder ?? (index < fallbackPivot ? 1 : 2);
+      const normalizedOrder = slotOrder === 1 ? 1 : 2;
 
-    return {
-      ...lecture,
-      timeSlot,
-    };
+      return {
+        ...lecture,
+        slotOrder: normalizedOrder,
+        timeSlot: TIME_SLOTS[normalizedOrder - 1],
+      };
+    });
   });
 }
 
@@ -22,7 +65,7 @@ export function getLecturesByDay(rawLectures: Lecture[]) {
   const decorated = decorateLectures(rawLectures);
 
   return DAY_ORDER.map((day) => {
-    const dayLectures = decorated.filter((lecture) => lecture.day === day);
+    const dayLectures = sortLecturesBySessionNo(decorated.filter((lecture) => lecture.day === day));
     return {
       day,
       date: dayLectures[0]?.date ?? '',
