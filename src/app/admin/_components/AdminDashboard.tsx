@@ -648,8 +648,7 @@ export function AdminDashboard({
             {section === 'sessions' ? (
               <>
                 <section>
-                  <h1 className="text-[2.15rem] font-semibold tracking-[-0.06em] text-[#232425]">세션 통계</h1>
-                  <p className="mt-1 text-[15px] text-[#6f6258]">참가자 기준 신청 현황과 각 선택세션별 신청자 분포를 확인하세요.</p>
+                  <h1 className="text-[2.15rem] font-semibold tracking-[-0.06em] text-[#232425]">선택세션 통계 KPI카드</h1>
                 </section>
 
                 <div className="grid gap-5 xl:grid-cols-4">
@@ -667,24 +666,31 @@ export function AdminDashboard({
                   <MetricCard label="신청 완료율" value={`${completionRate}%`} />
                 </div>
 
-                <div className="flex justify-end">
-                  <select
-                    value={filters.statsDay}
-                    onChange={(event) => setFilters((current) => ({ ...current, statsDay: event.target.value as FilterState['statsDay'] }))}
-                    className="rounded-[10px] border border-[#d8d4ca] bg-white px-4 py-3 text-[15px] outline-none"
-                  >
+                <section className="space-y-5">
+                  <div>
+                    <h2 className="text-[2.15rem] font-semibold tracking-[-0.06em] text-[#232425]">선택 세션 참가자 현황</h2>
+                    <p className="mt-2 text-[14px] text-[#8a7d72]">선택 세션을 클릭하면 신청자 확인이 가능합니다.</p>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <select
+                      value={filters.statsDay}
+                      onChange={(event) => setFilters((current) => ({ ...current, statsDay: event.target.value as FilterState['statsDay'] }))}
+                      className="rounded-[10px] border border-[#d8d4ca] bg-white px-4 py-3 text-[15px] outline-none"
+                    >
                       <option value="all">전체 날짜</option>
                       {DAY_ORDER.map((day) => (
                         <option key={day} value={day}>{SESSION_DAY_LABELS[day]}</option>
                       ))}
-                  </select>
-                </div>
+                    </select>
+                  </div>
 
-                <AdminSessionStats
-                  lectures={visibleLectures}
-                  countMap={lectureCountMap}
-                  applicantMap={lectureApplicantMap}
-                />
+                  <AdminSessionStats
+                    lectures={visibleLectures}
+                    countMap={lectureCountMap}
+                    applicantMap={lectureApplicantMap}
+                  />
+                </section>
               </>
             ) : null}
 

@@ -11,6 +11,14 @@ type ApplicantSummary = {
   organization: string | null;
 };
 
+function getLectureDisplayTitle(lecture: Lecture) {
+  if (lecture.sessionNo && lecture.sessionNo > 0) {
+    return `${lecture.sessionNo}. ${lecture.title}`;
+  }
+
+  return lecture.title;
+}
+
 function SessionCard({
   lecture,
   count,
@@ -29,7 +37,7 @@ function SessionCard({
       className="w-full rounded-[10px] border border-[#ddd7cc] bg-white px-5 py-5 text-left transition hover:border-[#cfc8bb] hover:bg-[#fcfbf8]"
     >
       <div>
-        <h3 className="truncate text-[1.08rem] font-semibold leading-8 text-[#232425]">{lecture.title}</h3>
+        <h3 className="truncate text-[1.08rem] font-semibold leading-8 text-[#232425]">{getLectureDisplayTitle(lecture)}</h3>
         <p className="mt-2 text-[15px] text-[#6f6258]">{formatLectureSpeakerMeta(lecture.speaker, lecture.position)}</p>
         <p className="mt-1 text-[15px] text-[#6f6258]">{lecture.location}</p>
       </div>
@@ -105,7 +113,7 @@ export function AdminSessionStats({
             <section className="relative z-[101] max-h-[90vh] w-full max-w-[860px] overflow-y-auto rounded-[16px] border border-[#ddd7cc] bg-white shadow-[0_24px_80px_rgba(0,0,0,0.18)]">
               <div className="flex items-start justify-between gap-3 border-b border-[#ebe7df] px-6 py-5">
                 <div>
-                  <h2 className="text-[1.12rem] font-semibold text-[#232425]">{selectedLecture.title}</h2>
+                  <h2 className="text-[1.12rem] font-semibold text-[#232425]">{getLectureDisplayTitle(selectedLecture)}</h2>
                   <p className="mt-1 text-[13px] text-[#6f6258]">
                     {formatLectureSpeakerMeta(selectedLecture.speaker, selectedLecture.position)}
                     {' · '}
