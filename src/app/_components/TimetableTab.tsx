@@ -7,6 +7,8 @@ import { DAY_LABELS, DAY_ORDER } from '@/utils/tickets';
 import { isBreakSession, isTimeInsideRange } from './home-helpers';
 import { PersonMark, PinMark, PinMiniMark } from './home-marks';
 import { ModalPortal } from './ModalPortal';
+import { splitLectureHeading } from './home-helpers';
+import { formatLectureSpeakerMeta } from '@/utils/lectures';
 import { RoughBorder } from './RoughBorder';
 
 const DAY_TICKET_LABELS: Record<DayKey, string> = {
@@ -17,7 +19,6 @@ const DAY_TICKET_LABELS: Record<DayKey, string> = {
 
 export function TimetableTab({
   activeDay,
-  timetableDays,
   selectedDay,
   currentTime,
   timetableApplications,
@@ -27,7 +28,6 @@ export function TimetableTab({
   onGoToMyLectures,
 }: {
   activeDay: TimetableDay;
-  timetableDays: TimetableDay[];
   selectedDay: DayKey;
   currentTime: string;
   timetableApplications: Array<Application & { lecture: Lecture }>;
@@ -243,17 +243,31 @@ export function TimetableTab({
                         <p className="text-xs font-black uppercase tracking-[0.01em] text-[#8a6800]">내가 선택한 세션</p>
                         {selectedApplication ? (
                           <>
-                            <p className="mt-1 text-[16px] font-semibold leading-[1.35] tracking-tight text-[color:var(--ink)]">
-                              {selectedApplication.lecture.title}
-                            </p>
+                            {(() => {
+                              const heading = splitLectureHeading(
+                                selectedApplication.lecture.title,
+                                selectedApplication.lecture.sessionNo,
+                              );
+
+                              return (
+                                <>
+                                  <p className="mt-1 text-[13px] font-medium uppercase tracking-[0.01em] text-[#8a6800]">
+                                    {heading.label}
+                                  </p>
+                                  <p className="mt-1 text-[16px] font-semibold leading-[1.35] tracking-tight text-[color:var(--ink)]">
+                                    {heading.title}
+                                  </p>
+                                </>
+                              );
+                            })()}
                             <div className="mt-1 space-y-1.5 text-[14px] font-medium text-[color:var(--ink)]/72">
                               <p className="flex min-w-0 items-start gap-1.5">
                                 <PersonMark />
                                 <span className="min-w-0">
-                                  {selectedApplication.lecture.speaker}
-                                  {selectedApplication.lecture.position && selectedApplication.lecture.position !== '비었음'
-                                    ? ` · ${selectedApplication.lecture.position}`
-                                    : ''}
+                                  {formatLectureSpeakerMeta(
+                                    selectedApplication.lecture.speaker,
+                                    selectedApplication.lecture.position,
+                                  )}
                                 </span>
                               </p>
                               <p className="inline-flex items-start gap-1.5">
@@ -343,18 +357,7 @@ export function TimetableTab({
 }
 
 function formatSpeakerLabel(speaker: string | null | undefined, position?: string | null) {
-  const normalizedSpeaker = speaker?.trim();
-  const normalizedPosition = position?.trim();
-
-  if (!normalizedSpeaker || normalizedSpeaker === '비었음') {
-    return '';
-  }
-
-  if (!normalizedPosition || normalizedPosition === '비었음') {
-    return normalizedSpeaker;
-  }
-
-  return `${normalizedSpeaker} · ${normalizedPosition}`;
+  return formatLectureSpeakerMeta(speaker, position);
 }
 
 function formatTimetableLabel(label: string) {

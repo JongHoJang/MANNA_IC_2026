@@ -1,12 +1,21 @@
-export function splitLectureHeading(title: string) {
-  const [labelPart, ...rest] = title.split('.');
+export function splitLectureHeading(title: string, sessionNo?: number | null) {
+  const normalizedTitle = title.trim();
+
+  if (sessionNo && sessionNo > 0) {
+    return {
+      label: `선택세션 ${sessionNo}.`,
+      title: normalizedTitle,
+    };
+  }
+
+  const [labelPart, ...rest] = normalizedTitle.split('.');
   const hasExplicitLabel = rest.length > 0;
   const label = hasExplicitLabel ? (labelPart?.trim() ?? '') : '';
   const titleText = rest.join('.').trim();
 
   return {
     label: label ? `${label}.` : '',
-    title: titleText || title,
+    title: titleText || normalizedTitle,
   };
 }
 
