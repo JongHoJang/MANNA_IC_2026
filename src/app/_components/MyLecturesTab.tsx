@@ -101,6 +101,8 @@ export function MyLecturesTab({
         delete next[slot];
         return next;
       });
+      setConfirmTarget(null);
+      return;
     }
 
     closeConfirmModal();
