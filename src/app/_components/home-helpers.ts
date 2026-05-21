@@ -39,6 +39,13 @@ export function formatCurrentTime(date: Date) {
   return `${hours}:${minutes}`;
 }
 
+export function formatCurrentDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export function isBreakSession(label: string, title: string) {
   return ['점심 시간', '저녁 시간', '간식 및 이동 시간', '이동'].some(
     (keyword) => label.includes(keyword) || title.includes(keyword),

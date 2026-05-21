@@ -10,7 +10,7 @@ import { getPurchasedDays, hasPurchasedDay } from '@/utils/tickets';
 import { LoadingShell } from '@/components/ui/LoadingShell';
 import { Notice } from '@/components/ui/Notice';
 import { BottomNav, type AppTab } from './_components/BottomNav';
-import { formatCurrentTime } from './_components/home-helpers';
+import { formatCurrentDateKey, formatCurrentTime } from './_components/home-helpers';
 import { HomeLogin } from './_components/HomeLogin';
 import { HomeTab } from './_components/HomeTab';
 import { MyLecturesTab } from './_components/MyLecturesTab';
@@ -41,10 +41,12 @@ export default function HomePage() {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [message, setMessage] = useState<string | null>(null);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [activeDay, setActiveDay] = useState<DayKey>('Day1');
   const [activeTimetableDay, setActiveTimetableDay] = useState<DayKey>('Day1');
   const [activeLectureSlot, setActiveLectureSlot] = useState<TimeSlot>('1타임');
   const [currentTime, setCurrentTime] = useState(() => formatCurrentTime(new Date()));
+  const [currentDateKey, setCurrentDateKey] = useState(() => formatCurrentDateKey(new Date()));
   const [activeTab, setActiveTab] = useState<AppTab>('home');
   const contentScrollRef = useRef<HTMLDivElement | null>(null);
   const progressBarRef = useRef<HTMLDivElement | null>(null);
@@ -77,7 +79,9 @@ export default function HomePage() {
 
   useEffect(() => {
     const updateCurrentTime = () => {
-      setCurrentTime(formatCurrentTime(new Date()));
+      const now = new Date();
+      setCurrentTime(formatCurrentTime(now));
+      setCurrentDateKey(formatCurrentDateKey(now));
     };
 
     updateCurrentTime();
@@ -172,23 +176,28 @@ export default function HomePage() {
 
   async function handleLoginSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setIsLoggingIn(true);
 
-    const result = await login(name, phone);
+    try {
+      const result = await login(name, phone);
 
-    if (!result.success) {
-      setMessage(result.message);
-      return;
+      if (!result.success) {
+        setMessage(result.message);
+        return;
+      }
+
+      if (result.role === 'admin') {
+        router.replace('/admin');
+        return;
+      }
+
+      setName('');
+      setPhone('');
+      setActiveTab('home');
+      setMessage(null);
+    } finally {
+      setIsLoggingIn(false);
     }
-
-    if (result.role === 'admin') {
-      router.replace('/admin');
-      return;
-    }
-
-    setName('');
-    setPhone('');
-    setActiveTab('home');
-    setMessage(null);
   }
 
   function handleDaySelect(day: DayKey) {
@@ -248,6 +257,7 @@ export default function HomePage() {
         name={name}
         phone={phone}
         message={message}
+        isLoggingIn={isLoggingIn}
         onNameChange={setName}
         onPhoneChange={setPhone}
         onSubmit={handleLoginSubmit}
@@ -308,6 +318,7 @@ export default function HomePage() {
               activeDay={activeTimetable}
               selectedDay={activeTimetableDay}
               currentTime={currentTime}
+              currentDateKey={currentDateKey}
               timetableApplications={timetableApplications}
               purchasedDays={purchasedDays}
               lectureApplicationCountMap={effectiveLectureApplicationCountMap}

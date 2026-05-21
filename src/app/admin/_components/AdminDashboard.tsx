@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { Application, DayKey, Lecture, Participant, TimeSlot } from '@/types';
 import { Notice } from '@/components/ui/Notice';
 import {
@@ -47,6 +47,25 @@ type ToggleOption<T extends string> = {
   value: T;
 };
 
+const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
+const ADMIN_SECTION_STORAGE_KEY = 'manna-admin-section';
+
+function buildPageNumbers(currentPage: number, totalPages: number) {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
+  }
+
+  if (currentPage <= 4) {
+    return [1, 2, 3, 4, 5, totalPages - 1, totalPages];
+  }
+
+  if (currentPage >= totalPages - 3) {
+    return [1, 2, totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+  }
+
+  return [1, currentPage - 1, currentPage, currentPage + 1, totalPages];
+}
+
 function MetricCard({
   label,
   value,
@@ -62,6 +81,26 @@ function MetricCard({
       <p className="mt-3 text-[2.7rem] font-semibold leading-none tracking-[-0.06em] text-[#241b16]">{value}</p>
       {detail ? <p className="mt-3 text-[14px] text-[#6f6258]">{detail}</p> : null}
     </div>
+  );
+}
+
+function AdminSectionHeader({
+  title,
+  description,
+  action,
+}: {
+  title: string;
+  description?: string;
+  action?: ReactNode;
+}) {
+  return (
+    <section className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+      <div>
+        <h1 className="text-[2.35rem] font-semibold leading-[0.95] tracking-[-0.07em] text-[#232425]">{title}</h1>
+        {description ? <p className="mt-2 text-[14px] text-[#8a7d72]">{description}</p> : null}
+      </div>
+      {action ? <div className="shrink-0">{action}</div> : null}
+    </section>
   );
 }
 
@@ -269,9 +308,19 @@ export function AdminDashboard({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [sessionDownloading, setSessionDownloading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(message);
-  const [section, setSection] = useState<SectionKey>('participants');
+  const [section, setSection] = useState<SectionKey>(() => {
+    if (typeof window === 'undefined') {
+      return 'participants';
+    }
+
+    const savedSection = window.localStorage.getItem(ADMIN_SECTION_STORAGE_KEY);
+    return savedSection === 'sessions' ? 'sessions' : 'participants';
+  });
   const [detailOpen, setDetailOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(50);
 
   useEffect(() => {
     let active = true;
@@ -313,6 +362,10 @@ export function AdminDashboard({
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(ADMIN_SECTION_STORAGE_KEY, section);
+  }, [section]);
 
   const rows: AdminParticipantRow[] = participants.map((participant) => {
     const byDay = getApplicationsByDayForParticipant(applications, participant.id);
@@ -369,6 +422,22 @@ export function AdminDashboard({
 
     return true;
   });
+
+  useEffect(() => {
+    setPage(1);
+  }, [filters.query, filters.ticket, filters.completion, filters.missingDay]);
+
+  const numberedRows = useMemo(
+    () => filteredRows.map((row, index) => ({ ...row, rowNumber: index + 1 })),
+    [filteredRows],
+  );
+  const totalPages = Math.max(1, Math.ceil(numberedRows.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const paginatedRows = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return numberedRows.slice(start, start + pageSize);
+  }, [currentPage, numberedRows, pageSize]);
+  const pageNumbers = buildPageNumbers(currentPage, totalPages);
 
   useEffect(() => {
     if (filteredRows.length === 0) {
@@ -484,23 +553,55 @@ export function AdminDashboard({
 
       if (!response.ok) {
         const payload = (await response.json()) as { message?: string };
-        throw new Error(payload.message ?? 'CSV 다운로드에 실패했습니다.');
+        throw new Error(payload.message ?? '엑셀 다운로드에 실패했습니다.');
       }
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const anchor = document.createElement('a');
       anchor.href = url;
-      anchor.download = 'admin-missing-participants.csv';
+      const contentDisposition = response.headers.get('Content-Disposition') ?? '';
+      const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/i);
+      anchor.download = filenameMatch?.[1] ?? 'missing-session.csv';
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
       window.URL.revokeObjectURL(url);
-      setStatusMessage('미신청자 명단 다운로드를 시작했습니다.');
+      setStatusMessage('미신청자 명단 엑셀 다운로드를 시작했습니다.');
     } catch (error) {
-      setStatusMessage(error instanceof Error ? error.message : 'CSV 다운로드에 실패했습니다.');
+      setStatusMessage(error instanceof Error ? error.message : '엑셀 다운로드에 실패했습니다.');
     } finally {
       setDownloading(false);
+    }
+  }
+
+  async function handleDownloadSessionStatsCsv() {
+    setSessionDownloading(true);
+
+    try {
+      const response = await fetch('/api/admin/export-sessions');
+
+      if (!response.ok) {
+        const payload = (await response.json()) as { message?: string };
+        throw new Error(payload.message ?? '선택세션 통계 다운로드에 실패했습니다.');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      const contentDisposition = response.headers.get('Content-Disposition') ?? '';
+      const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/i);
+      anchor.download = filenameMatch?.[1] ?? 'session-count.csv';
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.URL.revokeObjectURL(url);
+      setStatusMessage('선택세션 통계 다운로드를 시작했습니다.');
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : '선택세션 통계 다운로드에 실패했습니다.');
+    } finally {
+      setSessionDownloading(false);
     }
   }
 
@@ -549,6 +650,10 @@ export function AdminDashboard({
     }));
   }
 
+  function handleRefresh() {
+    window.location.reload();
+  }
+
   return (
     <main className="min-h-screen bg-[#f5f4ef]">
       <div className="grid min-h-screen lg:grid-cols-[226px_minmax(0,1fr)]">
@@ -569,6 +674,20 @@ export function AdminDashboard({
             <SidebarItem active={section === 'sessions'} label="선택세션 통계" onClick={() => setSection('sessions')} />
           </div>
 
+          <div className="px-4 pt-5">
+            <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+              <p className="text-[12px] leading-5 text-white/72">새로운 작업 시작 전에 새로고침을 해주세요.</p>
+              <button
+                type="button"
+                onClick={handleRefresh}
+                className="mt-3 flex w-full items-center gap-3 rounded-xl border border-white/12 bg-white/8 px-4 py-3 text-left text-[15px] font-medium text-white/88 transition hover:bg-white/12"
+              >
+                <span>↻</span>
+                <span>새로고침</span>
+              </button>
+            </div>
+          </div>
+
           <div className="mt-auto border-t border-white/10 px-4 py-5">
             <div className="space-y-1">
               <button type="button" onClick={onLogout} className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-[15px] text-white/84">
@@ -585,19 +704,20 @@ export function AdminDashboard({
 
             {section === 'participants' ? (
               <>
-                <section className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                  <div>
-                    <h1 className="text-[2.35rem] font-semibold leading-[0.95] tracking-[-0.07em] text-[#232425]">참가자 관리</h1>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleDownloadCsv}
-                    disabled={downloading}
-                    className="rounded-[8px] border border-[#d8d4ca] bg-white px-4 py-3 text-[15px] font-medium text-[#232425] disabled:opacity-60"
-                  >
-                    {downloading ? '다운로드 준비 중...' : '미신청자 명단 다운로드'}
-                  </button>
-                </section>
+                <AdminSectionHeader
+                  title="참가자 관리"
+                  description="활성 참가자 명단과 선택세션 신청 상태를 한 화면에서 관리합니다."
+                  action={
+                    <button
+                      type="button"
+                      onClick={handleDownloadCsv}
+                      disabled={downloading}
+                      className="rounded-[8px] border border-[#d8d4ca] bg-white px-4 py-3 text-[15px] font-medium text-[#232425] disabled:opacity-60"
+                    >
+                      {downloading ? '다운로드 준비 중...' : '미신청자 명단 다운로드'}
+                    </button>
+                  }
+                />
 
                 <section className="space-y-4">
                   <div className="space-y-4 rounded-[18px] border border-[#e8dfcc] bg-[rgba(255,255,255,0.72)] px-4 py-4 shadow-[0_14px_30px_rgba(160,132,52,0.06)]">
@@ -617,14 +737,85 @@ export function AdminDashboard({
                     </div>
                   </div>
 
+                  <div className="flex justify-end px-1">
+                    <p className="text-[14px] font-medium text-[#6f6258]">
+                      전체 {filteredRows.length}명
+                    </p>
+                  </div>
+
                   <AdminParticipantTable
-                    rows={filteredRows}
+                    rows={paginatedRows}
                     selectedParticipantId={selectedParticipantId}
                     onSelect={(participantId) => {
                       setSelectedParticipantId(participantId);
                       setDetailOpen(true);
                     }}
                   />
+                  <div className="flex flex-col gap-3 rounded-[18px] border border-[#e6dcc6] bg-[rgba(255,255,255,0.9)] px-4 py-4 shadow-[0_18px_42px_rgba(160,132,52,0.08)] sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-2">
+                      <label htmlFor="page-size" className="text-[13px] font-medium text-[#8a7b63]">
+                        페이지당
+                      </label>
+                      <select
+                        id="page-size"
+                        value={pageSize}
+                        onChange={(event) => {
+                          setPageSize(Number(event.target.value) as (typeof PAGE_SIZE_OPTIONS)[number]);
+                          setPage(1);
+                        }}
+                        className="rounded-[10px] border border-[#d8cfbf] bg-white px-3 py-2 text-[14px] text-[#232425] outline-none"
+                      >
+                        {PAGE_SIZE_OPTIONS.map((option) => (
+                          <option key={option} value={option}>
+                            {option}명
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPage((current) => Math.max(1, current - 1))}
+                        disabled={currentPage <= 1}
+                        className="rounded-[10px] border border-[#d8cfbf] bg-white px-3 py-2 text-[14px] font-medium text-[#232425] disabled:cursor-not-allowed disabled:opacity-45"
+                      >
+                        이전
+                      </button>
+                      <div className="flex items-center gap-1">
+                        {pageNumbers.map((pageNumber, index) => {
+                          const prev = pageNumbers[index - 1];
+                          const showGap = prev && pageNumber - prev > 1;
+
+                          return (
+                            <div key={pageNumber} className="flex items-center gap-1">
+                              {showGap ? <span className="px-1 text-[13px] text-[#8a7b63]">…</span> : null}
+                              <button
+                                type="button"
+                                onClick={() => setPage(pageNumber)}
+                                className={[
+                                  'min-w-9 rounded-[10px] border px-3 py-2 text-[14px] font-medium transition',
+                                  pageNumber === currentPage
+                                    ? 'border-[#9a7b00] bg-[#9a7b00] text-white'
+                                    : 'border-[#d8cfbf] bg-white text-[#232425]',
+                                ].join(' ')}
+                              >
+                                {pageNumber}
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                        disabled={currentPage >= totalPages}
+                        className="rounded-[10px] border border-[#d8cfbf] bg-white px-3 py-2 text-[14px] font-medium text-[#232425] disabled:cursor-not-allowed disabled:opacity-45"
+                      >
+                        다음
+                      </button>
+                    </div>
+                  </div>
                   <AdminParticipantDetailPanel
                     participant={selectedRow?.participant ?? null}
                     form={form}
@@ -643,9 +834,20 @@ export function AdminDashboard({
 
             {section === 'sessions' ? (
               <>
-                <section>
-                  <h1 className="text-[2.15rem] font-semibold tracking-[-0.06em] text-[#232425]">선택세션 통계</h1>
-                </section>
+                <AdminSectionHeader
+                  title="선택세션 통계"
+                  description="Day별 세션 신청 현황과 각 세션 신청자 명단을 확인합니다."
+                  action={
+                    <button
+                      type="button"
+                      onClick={handleDownloadSessionStatsCsv}
+                      disabled={sessionDownloading}
+                      className="rounded-[8px] border border-[#d8d4ca] bg-white px-4 py-3 text-[15px] font-medium text-[#232425] disabled:opacity-60"
+                    >
+                      {sessionDownloading ? '다운로드 준비 중...' : '선택세션 통계 다운로드'}
+                    </button>
+                  }
+                />
 
                 <div className="grid gap-5 xl:grid-cols-4">
                   <MetricCard label="전체 참가자 수" value={`${totalParticipants}명`} />
@@ -665,9 +867,8 @@ export function AdminDashboard({
                 <section className="space-y-5 pt-4">
                   <div>
                     <h2 className="text-[2.15rem] font-semibold tracking-[-0.06em] text-[#232425]">선택 세션 참가자 현황</h2>
-                    <p className="mt-2 text-[14px] text-[#8a7d72]">선택 세션을 클릭하면 신청자 확인이 가능합니다.</p>
+                    <p className="mt-2 text-[14px] text-[#8a7d72]">선택 세션을 클릭하면 첫번째 선택과 두번째 선택 신청자를 확인할 수 있습니다.</p>
                   </div>
-
                   <AdminSessionStats
                     lectures={visibleLectures}
                     countMap={lectureCountMap}

@@ -5,6 +5,7 @@ export function HomeLogin({
   name,
   phone,
   message,
+  isLoggingIn,
   onNameChange,
   onPhoneChange,
   onSubmit,
@@ -12,6 +13,7 @@ export function HomeLogin({
   name: string;
   phone: string;
   message: string | null;
+  isLoggingIn: boolean;
   onNameChange: (value: string) => void;
   onPhoneChange: (value: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
@@ -43,9 +45,10 @@ export function HomeLogin({
               <label className="block text-sm font-semibold text-[color:var(--ink)]">이름</label>
               <input
                 value={name}
+                disabled={isLoggingIn}
                 onChange={(event) => onNameChange(event.target.value)}
                 placeholder="예: 김만나"
-                className="w-full rounded-[2px] border-[2px] border-[color:var(--ink)]/14 bg-white px-4 py-3 text-base text-[color:var(--ink)] outline-none transition placeholder:text-[color:var(--muted)]/55 focus:border-[color:var(--ink)]/42"
+                className="w-full rounded-[2px] border-[2px] border-[color:var(--ink)]/14 bg-white px-4 py-3 text-base text-[color:var(--ink)] outline-none transition placeholder:text-[color:var(--muted)]/55 focus:border-[color:var(--ink)]/42 disabled:cursor-not-allowed disabled:bg-[#f0ece4] disabled:text-[color:var(--muted)]"
               />
             </div>
 
@@ -53,18 +56,29 @@ export function HomeLogin({
               <label className="block text-sm font-semibold text-[color:var(--ink)]">휴대폰 번호</label>
               <input
                 value={phone}
+                disabled={isLoggingIn}
                 onChange={(event) => onPhoneChange(event.target.value)}
-                placeholder="01011112222 (- 없이 입력)"
-                className="w-full rounded-[2px] border-[2px] border-[color:var(--ink)]/14 bg-white px-4 py-3 text-base text-[color:var(--ink)] outline-none transition placeholder:text-[color:var(--muted)]/55 focus:border-[color:var(--ink)]/42"
+                placeholder="예: 01012345678 (-없이 입력)"
+                className="w-full rounded-[2px] border-[2px] border-[color:var(--ink)]/14 bg-white px-4 py-3 text-base text-[color:var(--ink)] outline-none transition placeholder:text-[color:var(--muted)]/55 focus:border-[color:var(--ink)]/42 disabled:cursor-not-allowed disabled:bg-[#f0ece4] disabled:text-[color:var(--muted)]"
               />
             </div>
 
             <button
               type="submit"
-              className="mt-1 flex h-14 w-full items-center justify-center gap-2 rounded-[2px] border-[2px] border-[color:var(--ink)] bg-[color:var(--ink)] px-4 text-sm font-semibold text-[color:var(--paper)] shadow-[4px_4px_0_rgba(36,27,22,0.16)] transition hover:translate-y-[1px] hover:shadow-[3px_3px_0_rgba(36,27,22,0.16)]"
+              disabled={isLoggingIn}
+              className="mt-1 flex h-14 w-full items-center justify-center gap-2 rounded-[2px] border-[2px] border-[color:var(--ink)] bg-[color:var(--ink)] px-4 text-sm font-semibold text-[color:var(--paper)] shadow-[4px_4px_0_rgba(36,27,22,0.16)] transition hover:translate-y-[1px] hover:shadow-[3px_3px_0_rgba(36,27,22,0.16)] disabled:cursor-not-allowed disabled:translate-y-0 disabled:bg-[color:var(--ink)]/82 disabled:shadow-none"
             >
-              <span>입장하기</span>
-              <span aria-hidden="true">→</span>
+              {isLoggingIn ? (
+                <>
+                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-[color:var(--paper)]/35 border-t-[color:var(--paper)]" />
+                  <span>로그인 중...</span>
+                </>
+              ) : (
+                <>
+                  <span>입장하기</span>
+                  <span aria-hidden="true">→</span>
+                </>
+              )}
             </button>
           </form>
         </section>

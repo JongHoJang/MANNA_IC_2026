@@ -19,6 +19,7 @@ export function TimetableTab({
   activeDay,
   selectedDay,
   currentTime,
+  currentDateKey,
   timetableApplications,
   purchasedDays,
   lectureApplicationCountMap,
@@ -28,17 +29,22 @@ export function TimetableTab({
   activeDay: TimetableDay;
   selectedDay: DayKey;
   currentTime: string;
+  currentDateKey: string;
   timetableApplications: Array<Application & { lecture: Lecture }>;
   purchasedDays: DayKey[];
   lectureApplicationCountMap: Record<string, number>;
   onSelectDay: (day: DayKey) => void;
   onGoToMyLectures: (day: DayKey, slot: TimeSlot) => void;
 }) {
-  const targetRowIndex = getTargetRowIndex(activeDay.rows, currentTime);
+  const targetRowIndex = getTargetRowIndex(activeDay, currentDateKey, currentTime);
   const currentRowRef = useRef<HTMLElement | null>(null);
   const [purchaseNoticeDay, setPurchaseNoticeDay] = useState<DayKey | null>(null);
 
   useLayoutEffect(() => {
+    if (targetRowIndex === null) {
+      return;
+    }
+
     const frame = window.requestAnimationFrame(() => {
       currentRowRef.current?.scrollIntoView({
         behavior: 'smooth',
@@ -410,20 +416,24 @@ function resolveSelectionSlot(label: string, title?: string, place?: string): Ti
   return null;
 }
 
-function getTargetRowIndex(rows: TimetableDay['rows'], currentTime: string) {
+function getTargetRowIndex(activeDay: TimetableDay, currentDateKey: string, currentTime: string) {
+  if (normalizeTimetableDate(activeDay.date) !== currentDateKey) {
+    return null;
+  }
+
   const currentMinutes = toMinutes(currentTime);
 
   if (currentMinutes < 0) {
     return 0;
   }
 
-  const matchingIndex = rows.findIndex((row) => isTimeInsideRange(currentTime, row.time));
+  const matchingIndex = activeDay.rows.findIndex((row) => isTimeInsideRange(currentTime, row.time));
 
   if (matchingIndex >= 0) {
     return matchingIndex;
   }
 
-  const futureIndex = rows.findIndex((row) => {
+  const futureIndex = activeDay.rows.findIndex((row) => {
     const [start] = row.time.split(' - ');
     return toMinutes(start) >= currentMinutes;
   });
@@ -432,7 +442,25 @@ function getTargetRowIndex(rows: TimetableDay['rows'], currentTime: string) {
     return futureIndex;
   }
 
-  return Math.max(rows.length - 1, 0);
+  return Math.max(activeDay.rows.length - 1, 0);
+}
+
+function normalizeTimetableDate(value: string) {
+  const normalized = value.trim();
+  const isoMatch = normalized.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+  if (isoMatch) {
+    return normalized;
+  }
+
+  const koreanMatch = normalized.match(/^(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일$/);
+
+  if (!koreanMatch) {
+    return normalized;
+  }
+
+  const [, year, month, day] = koreanMatch;
+  return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
 }
 
 function toMinutes(value: string) {

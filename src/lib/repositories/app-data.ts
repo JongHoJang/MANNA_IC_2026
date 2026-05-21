@@ -26,6 +26,7 @@ type ParticipantRecord = {
   id: string;
   name: string;
   phone: string;
+  is_active?: boolean | null;
   position: string | null;
   email?: string | null;
   organization?: string | null;
@@ -106,6 +107,7 @@ type ParticipantLoginRpcRow = {
   id: string;
   name: string;
   phone: string;
+  is_active?: boolean | null;
   position: string | null;
   email?: string | null;
   organization?: string | null;
@@ -335,6 +337,7 @@ function mapParticipantRecord(participant: ParticipantRecord): Participant {
     id: participant.id,
     name: participant.name,
     phone: participant.phone,
+    isActive: participant.is_active ?? true,
     ticketText: buildTicketText(participant) || '비었음',
     ticketInfo: participant.ticket_info?.trim() || null,
     position: participant.is_admin ? 'Admin' : participant.position?.trim() || '비었음',
@@ -521,7 +524,7 @@ async function loadParticipantById(participantId: string) {
 
   const { data, error } = await supabase
     .from('participants')
-    .select('id, name, phone, position, email, organization, is_admin, ticket_info, day1, day2, day3')
+    .select('id, name, phone, is_active, position, email, organization, is_admin, ticket_info, day1, day2, day3')
     .eq('id', participantId)
     .maybeSingle();
 
@@ -586,7 +589,7 @@ export async function loadBootstrapData(): Promise<BootstrapData> {
   }
 
   const [participantsResult, lectureData, applications] = await Promise.all([
-    supabase.from('participants').select('id, name, phone, position, email, organization, is_admin, ticket_info, day1, day2, day3').order('created_at'),
+    supabase.from('participants').select('id, name, phone, is_active, position, email, organization, is_admin, ticket_info, day1, day2, day3').order('created_at'),
     loadLectureRecordsAndTimetable(),
     loadApplicationRecords(),
   ]);
@@ -751,7 +754,7 @@ export async function loadAdminParticipantsData() {
   const bootstrapData = await loadBootstrapData();
 
   return {
-    participants: bootstrapData.participants.filter((participant) => !participant.isAdmin),
+    participants: bootstrapData.participants.filter((participant) => !participant.isAdmin && participant.isActive !== false),
     lectures: bootstrapData.lectures,
     applications: bootstrapData.applications,
   };
@@ -862,7 +865,7 @@ export async function updateAdminParticipant(participantId: string, input: Parti
     .update(payload)
     .eq('id', participantId)
     .eq('is_admin', false)
-    .select('id, name, phone, position, email, organization, is_admin, ticket_info, day1, day2, day3')
+    .select('id, name, phone, is_active, position, email, organization, is_admin, ticket_info, day1, day2, day3')
     .single();
 
   if (error || !data) {

@@ -1,9 +1,10 @@
+import ExcelJS from 'exceljs';
 import { NextResponse } from 'next/server';
 import { getAdminSessionTokenFromCookieHeader, isAuthorizedAdmin } from '@/lib/admin-session';
 import { getAdminParticipant, loadAdminParticipantsData } from '@/lib/repositories/app-data';
-import { getApplicationsByDayForParticipant, getMissingDaysForParticipant } from '@/utils/applications';
-import type { DayKey } from '@/types';
-import { DAY_ORDER, SESSION_DAY_LABELS } from '@/utils/tickets';
+import { getApplicationsByDayForParticipant, getMissingDaysForParticipant, getParticipantActiveDays } from '@/utils/applications';
+import type { DayKey, TimeSlot } from '@/types';
+import { DAY_ORDER } from '@/utils/tickets';
 
 function parseCompletion(value: string | null) {
   if (value === 'complete' || value === 'incomplete') {
@@ -30,6 +31,58 @@ function parseDayFilters(value: string | null): DayKey[] {
     .split(',')
     .map((item) => item.trim())
     .filter((item): item is DayKey => item === 'Day1' || item === 'Day2' || item === 'Day3');
+}
+
+function formatPhoneWithLeadingZero(phone: string) {
+  const digits = phone.replace(/[^\d]/g, '');
+
+  if (!digits) {
+    return '';
+  }
+
+  const normalized = digits.replace(/^0+/, '');
+  return normalized ? `0${normalized}` : '0';
+}
+
+function formatTicketDays(days: DayKey[]) {
+  return DAY_ORDER.filter((day) => days.includes(day)).join(' | ');
+}
+
+function formatSelectionStatus(
+  applications: ReturnType<typeof getApplicationsByDayForParticipant>,
+  ticketDays: DayKey[],
+) {
+  const slots: TimeSlot[] = ['1타임', '2타임'];
+
+  return DAY_ORDER.filter((day) => ticketDays.includes(day)).map((day) => {
+    const dayApplications = applications[day];
+    const slotFlags = slots.map((slot) => (dayApplications.some((application) => application.timeSlot === slot) ? '1' : '0'));
+    return `${day} ${slotFlags.join('/')}`;
+  }).join(' | ');
+}
+
+function formatDownloadTimestamp(date: Date) {
+  return new Intl.DateTimeFormat('ko-KR', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).format(date);
+}
+
+function formatDownloadFilename(date: Date) {
+  const seoulDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+  const year = String(seoulDate.getFullYear()).slice(-2);
+  const month = String(seoulDate.getMonth() + 1).padStart(2, '0');
+  const day = String(seoulDate.getDate()).padStart(2, '0');
+  const hour = String(seoulDate.getHours()).padStart(2, '0');
+  const minute = String(seoulDate.getMinutes()).padStart(2, '0');
+
+  return `${year}${month}${day}-${hour}${minute}`;
 }
 
 export async function GET(request: Request) {
@@ -97,36 +150,83 @@ export async function GET(request: Request) {
       );
     }
 
-    const header = ['이름', '연락처', '이메일', '소속', '직분', '티켓 정보', '선택세션 미신청 Day', '선택세션 상태'];
-    const csv = [header, ...rows.map((participant) => {
-      const missingDays = getMissingDaysForParticipant(applications, participant);
-      const byDay = getApplicationsByDayForParticipant(applications, participant.id);
-      const status = DAY_ORDER.map((day) => `${SESSION_DAY_LABELS[day]} ${byDay[day].length}/2`).join(' | ');
+    const downloadedAt = new Date();
+    const downloadedAtLabel = formatDownloadTimestamp(downloadedAt);
+    const filenameTimestamp = formatDownloadFilename(downloadedAt);
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('미신청자 명단');
 
-      return [
+    worksheet.columns = [
+      { key: 'name', width: 16 },
+      { key: 'organization', width: 24 },
+      { key: 'position', width: 18 },
+      { key: 'phone', width: 18 },
+      { key: 'ticket', width: 18 },
+      { key: 'status', width: 34 },
+    ];
+
+    worksheet.addRow(['다운로드 시각', downloadedAtLabel]);
+    worksheet.mergeCells('B1:F1');
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFF4E7' },
+    };
+
+    worksheet.addRow([]);
+    const headerRow = worksheet.addRow(['이름', '소속', '직분', '연락처', '티켓정보', '선택세션 상태']);
+    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF9A7B00' },
+    };
+    headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+
+    for (const participant of rows) {
+      const byDay = getApplicationsByDayForParticipant(applications, participant.id);
+      const ticketDays = getParticipantActiveDays(participant);
+      const row = worksheet.addRow([
         participant.name,
-        participant.phone,
-        participant.email ?? '',
         participant.organization ?? '',
         participant.position,
-        participant.ticketInfo ?? participant.ticketText,
-        missingDays.join(', '),
-        status,
-      ];
-    })]
-      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-      .join('\n');
+        formatPhoneWithLeadingZero(participant.phone),
+        formatTicketDays(ticketDays),
+        formatSelectionStatus(byDay, ticketDays),
+      ]);
 
-    return new NextResponse(`\uFEFF${csv}`, {
+      row.eachCell((cell, colNumber) => {
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FFE1D8C8' } },
+          left: { style: 'thin', color: { argb: 'FFE1D8C8' } },
+          bottom: { style: 'thin', color: { argb: 'FFE1D8C8' } },
+          right: { style: 'thin', color: { argb: 'FFE1D8C8' } },
+        };
+        cell.alignment = {
+          vertical: 'middle',
+          horizontal: colNumber === 2 || colNumber === 6 ? 'left' : 'center',
+        };
+      });
+
+      const phoneCell = row.getCell(4);
+      phoneCell.numFmt = '@';
+      phoneCell.value = formatPhoneWithLeadingZero(participant.phone);
+    }
+
+    worksheet.views = [{ state: 'frozen', ySplit: 3 }];
+    const buffer = await workbook.xlsx.writeBuffer();
+
+    return new NextResponse(buffer, {
       headers: {
-        'Content-Type': 'text/csv; charset=utf-8',
-        'Content-Disposition': 'attachment; filename=\"admin-missing-participants.csv\"',
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition': `attachment; filename="missing-session-${filenameTimestamp}.xlsx"`,
       },
     });
   } catch {
     return NextResponse.json(
       {
-        message: 'CSV 생성 중 오류가 발생했습니다.',
+        message: '엑셀 생성 중 오류가 발생했습니다.',
       },
       { status: 500 },
     );

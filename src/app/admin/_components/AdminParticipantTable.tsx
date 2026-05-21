@@ -2,6 +2,7 @@ import type { DayKey, Participant } from '@/types';
 import { DAY_ORDER } from '@/utils/tickets';
 
 export type AdminParticipantRow = {
+  rowNumber?: number;
   participant: Participant;
   missingDays: DayKey[];
   totalApplications: number;
@@ -163,6 +164,9 @@ export function AdminParticipantTable({
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#9a7b00]">
+                      No. {row.rowNumber ?? '-'}
+                    </p>
                     <p className="font-semibold text-[#232425]">{row.participant.name}</p>
                     <p className="mt-1 text-[13px] text-[#6f6258]">
                       {row.participant.organization ?? '소속 미입력'} · {row.participant.position}
@@ -188,19 +192,21 @@ export function AdminParticipantTable({
       </div>
 
       <div className="hidden overflow-x-auto lg:block">
-        <table className="min-w-[1040px] w-full table-fixed text-[14px]">
+        <table className="min-w-[1080px] w-full table-fixed text-[14px]">
           <colgroup>
-            <col style={{ width: '7.5%' }} />
-            <col style={{ width: '7.5%' }} />
-            <col style={{ width: '7.5%' }} />
-            <col style={{ width: '7.5%' }} />
-            <col style={{ width: '23.3333%' }} />
-            <col style={{ width: '23.3333%' }} />
-            <col style={{ width: '23.3334%' }} />
+            <col style={{ width: '5.5%' }} />
+            <col style={{ width: '8%' }} />
+            <col style={{ width: '8%' }} />
+            <col style={{ width: '8%' }} />
+            <col style={{ width: '8%' }} />
+            <col style={{ width: '20.8333%' }} />
+            <col style={{ width: '20.8333%' }} />
+            <col style={{ width: '20.8334%' }} />
           </colgroup>
           <thead>
             <tr className="bg-[#f8f3e7] text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-[#8a7b63]">
-              <th className="rounded-tl-[18px] border-b border-[#ece2cc] px-4 py-3">이름</th>
+              <th className="rounded-tl-[18px] border-b border-[#ece2cc] px-4 py-3">No.</th>
+              <th className="border-b border-[#ece2cc] px-4 py-3">이름</th>
               <th className="border-b border-[#ece2cc] px-4 py-3">소속</th>
               <th className="border-b border-[#ece2cc] px-4 py-3">직분</th>
               <th className="border-b border-[#ece2cc] px-4 py-3">연락처</th>
@@ -227,6 +233,9 @@ export function AdminParticipantTable({
                   key={row.participant.id}
                   className={active ? 'bg-[#fffdf6]' : 'bg-white hover:bg-[#fdfbf6]'}
                 >
+                  <td className="border-b border-[#efe6d3] px-4 py-4 align-top text-[13px] font-semibold text-[#9a7b00]">
+                    {row.rowNumber ?? '-'}
+                  </td>
                   <td className="border-b border-[#efe6d3] px-4 py-4 align-top">
                     <button type="button" onClick={() => onSelect(row.participant.id)} className="text-left">
                       <p className="text-[15px] font-medium leading-6 text-[#232425]">{row.participant.name}</p>
@@ -258,11 +267,6 @@ export function AdminParticipantTable({
             })}
           </tbody>
         </table>
-      </div>
-
-      <div className="border-t border-[#efe6d3] px-4 py-4 text-[15px] text-[#6f6258]">
-        현재 {rows.length}명 표시
-        {rows.length > 0 ? ` · 필터 적용 중` : ''}
       </div>
     </section>
   );
