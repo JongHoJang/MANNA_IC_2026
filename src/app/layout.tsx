@@ -5,6 +5,11 @@ import './globals.css';
 export const metadata: Metadata = {
   title: '만나IC 2026 컨퍼런스',
   description: '목회자와 평신도 리더십이 1년에 한 번 모이는 사역의 인터체인지',
+  icons: {
+    icon: '/pic/fabicon.png',
+    shortcut: '/pic/fabicon.png',
+    apple: '/pic/fabicon.png',
+  },
   openGraph: {
     title: '만나IC 2026 컨퍼런스',
     description: '목회자와 평신도 리더십이 1년에 한 번 모이는 사역의 인터체인지',

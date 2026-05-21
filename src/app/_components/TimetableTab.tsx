@@ -8,7 +8,6 @@ import { isBreakSession, isTimeInsideRange } from './home-helpers';
 import { PersonMark, PinMark, PinMiniMark } from './home-marks';
 import { ModalPortal } from './ModalPortal';
 import { formatLectureSpeakerMeta } from '@/utils/lectures';
-import { RoughBorder } from './RoughBorder';
 
 const DAY_TICKET_LABELS: Record<DayKey, string> = {
   Day1: '(6/23 화)',
@@ -94,14 +93,8 @@ export function TimetableTab({
       </div>
 
       <section className="px-1 pt-1">
-        <div className="flex items-start justify-between gap-3">
-          <p className="text-[1rem] font-black leading-none tracking-[-0.05em] text-[color:var(--ink)] sm:text-[1.1rem]">
-            {activeDay.title.split(' ')[0]}
-          </p>
-          <p className="text-sm font-semibold text-[color:var(--ink)]/82">@{activeDay.date}</p>
-        </div>
-        <h3 className="mt-2 text-[1.9rem] font-black leading-[0.92] tracking-[-0.075em] text-[color:var(--ink)] sm:text-[2.2rem]">
-          {activeDay.title.split(' ').slice(1).join(' ')}
+        <h3 className="text-[1.9rem] font-black leading-[0.92] tracking-[-0.075em] text-[color:var(--ink)] sm:text-[2.2rem]">
+          {activeDay.title}
         </h3>
         <div className="mt-4 h-px w-full bg-[rgba(36,27,22,0.82)]" />
       </section>
@@ -192,10 +185,9 @@ export function TimetableTab({
                   'relative grid grid-cols-[72px_1fr] gap-3 overflow-hidden rounded-[2px] bg-[color:var(--paper)] px-4 py-4 transition',
                   isCurrent
                     ? 'bg-[color:var(--page-bg)] shadow-none'
-                    : 'bg-[rgba(238,202,126,0.28)] text-[color:var(--ink)] shadow-[3px_3px_0_rgba(36,27,22,0.14)]',
+                    : 'border-2 border-[rgba(36,27,22,0.86)] bg-[rgba(238,202,126,0.28)] text-[color:var(--ink)] shadow-[3px_3px_0_rgba(36,27,22,0.14)]',
                 ].join(' ')}
               >
-                {!isCurrent ? <RoughBorder stroke="rgba(36,27,22,0.86)" strokeWidth={1.8} roughness={1.15} bowing={1.2} /> : null}
                 {isCurrent ? (
                   <span
                     aria-hidden="true"

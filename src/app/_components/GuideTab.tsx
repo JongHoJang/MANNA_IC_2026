@@ -36,6 +36,7 @@ const notices: NoticeItem[] = [
 ];
 
 const INSTAGRAM_URL = 'https://www.instagram.com/manna_ic?igsh=MThpZm1lNzM1MXNuaw==';
+const KAKAO_CHANNEL_URL = 'http://pf.kakao.com/_kxnxmKX';
 
 const faqs = [
   {
@@ -148,12 +149,14 @@ export function GuideTab() {
         <p className="mt-3 text-[15px] leading-7 text-[color:var(--paper)]/78">
           셔틀, 주차, 숙소, 등록, 분실물 관련 문의는 만나IC 카카오톡 채널에서 가장 빠르게 답변받을 수 있습니다.
         </p>
-        <button
-          type="button"
+        <a
+          href={KAKAO_CHANNEL_URL}
+          target="_blank"
+          rel="noreferrer"
           className="mt-5 flex h-14 w-full items-center justify-center rounded-[2px] border-[2px] border-[color:var(--paper)] bg-[color:var(--accent)] px-4 text-[16px] font-bold tracking-[0.01em] text-[color:var(--ink)]"
         >
           카카오톡 채널 열기
-        </button>
+        </a>
         <div className="mt-4 rounded-[2px] bg-white/10 px-4 py-4 text-[14px] leading-7 text-[color:var(--paper)]/78">
           운영 문의 가능 시간: 오전 9시 - 오후 8시
           <br />
@@ -183,10 +186,10 @@ export function GuideTab() {
       <section className="rounded-[2px] border-[2px] border-[color:var(--ink)] bg-[rgba(238,202,126,0.28)] px-5 py-6 shadow-[3px_3px_0_rgba(36,27,22,0.12)]">
         <p className="text-[13px] font-bold uppercase tracking-normal text-[#8a6800]">EVENT</p>
         <h3 className="mt-3 text-[24px] font-bold leading-[1.35] tracking-tight text-[color:var(--ink)]">
-          개인컵을 챙겨오시면 만나IC 특별 스티커팩을 선물로 드립니다.
+          텀블러를 챙겨주세요!
         </h3>
-        <p className="mt-3 text-[15px] leading-7 text-[color:var(--ink)]/74">
-          텀블러를 챙겨오시면 종이컵을 아끼며 아낌없이 커피를 드실 수 있습니다.
+        <p className="mt-3 whitespace-pre-line text-[15px] leading-7 text-[color:var(--ink)]/74">
+          {'종이컵도 아끼고,\n커피도 부담없이 계속해서 드실 수 있습니다.'}
         </p>
       </section>
 
