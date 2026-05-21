@@ -22,6 +22,7 @@ export async function POST(request: Request) {
       message: `${result.participant.name} 님으로 로그인했습니다.`,
       session: result.session,
       participant: result.participant,
+      applications: result.applications,
     });
 
     if (result.session.role === 'admin') {

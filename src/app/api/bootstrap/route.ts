@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { loadBootstrapData } from '@/lib/repositories/app-data';
+import { loadPublicBootstrapData } from '@/lib/repositories/app-data';
 
 export async function GET() {
   try {
-    const data = await loadBootstrapData();
+    const data = await loadPublicBootstrapData();
     return NextResponse.json(data);
   } catch {
     return NextResponse.json(

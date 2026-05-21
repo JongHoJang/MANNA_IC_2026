@@ -13,9 +13,10 @@ export async function POST(request: Request) {
     const result = await upsertLectureApplication(body);
 
     return NextResponse.json(result, {
-      status: result.success ? 200 : 400,
+      status: result.success ? 200 : 409,
     });
-  } catch {
+  } catch (error) {
+    console.error('POST /api/applications failed', error);
     return NextResponse.json(
       {
         success: false,

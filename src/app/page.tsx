@@ -7,7 +7,6 @@ import { useRouter } from 'next/navigation';
 import type { DayKey, Lecture, TimeSlot } from '@/types';
 import { useAppStore } from '@/store/useAppStore';
 import { getPurchasedDays, hasPurchasedDay } from '@/utils/tickets';
-import { findParticipantById } from '@/utils/session';
 import { LoadingShell } from '@/components/ui/LoadingShell';
 import { Notice } from '@/components/ui/Notice';
 import { BottomNav, type AppTab } from './_components/BottomNav';
@@ -19,20 +18,21 @@ import { TimetableTab } from './_components/TimetableTab';
 import { GuideTab } from './_components/GuideTab';
 
 const INSTAGRAM_URL = 'https://www.instagram.com/manna_ic?igsh=MThpZm1lNzM1MXNuaw==';
-const FULL_CAPACITY_PREVIEW_LECTURE_TITLE = '장비 없어도 할 수 있는 교회 음향 실전 워크숍';
 
 export default function HomePage() {
   const router = useRouter();
   const session = useAppStore((state) => state.session);
-  const participants = useAppStore((state) => state.participants);
+  const currentParticipant = useAppStore((state) => state.currentParticipant);
   const lectures = useAppStore((state) => state.lectures);
-  const applications = useAppStore((state) => state.applications);
+  const applications = useAppStore((state) => state.myApplications);
   const timetableDays = useAppStore((state) => state.timetableDays);
+  const lectureApplicationCountMap = useAppStore((state) => state.lectureApplicationCountMap);
   const selectedDayByParticipantId = useAppStore((state) => state.selectedDayByParticipantId);
   const hydrated = useAppStore((state) => state.hydrated);
   const bootstrapLoaded = useAppStore((state) => state.bootstrapLoaded);
   const bootstrapError = useAppStore((state) => state.bootstrapError);
   const fetchBootstrap = useAppStore((state) => state.fetchBootstrap);
+  const fetchParticipantState = useAppStore((state) => state.fetchParticipantState);
   const login = useAppStore((state) => state.login);
   const logout = useAppStore((state) => state.logout);
   const selectDay = useAppStore((state) => state.selectDay);
@@ -53,22 +53,7 @@ export default function HomePage() {
     () => new Map(lectures.map((lecture) => [lecture.id, lecture] as const)) as Map<string, Lecture>,
     [lectures],
   );
-  const lectureApplicationCountMap = useMemo(
-    () => {
-      const counts = applications.reduce<Record<string, number>>((accumulator, application) => {
-        accumulator[application.lectureId] = (accumulator[application.lectureId] ?? 0) + 1;
-        return accumulator;
-      }, {});
-      const previewLecture = lectures.find((lecture) => lecture.title === FULL_CAPACITY_PREVIEW_LECTURE_TITLE);
-
-      if (previewLecture?.capacity) {
-        counts[previewLecture.id] = previewLecture.capacity;
-      }
-
-      return counts;
-    },
-    [applications, lectures],
-  );
+  const effectiveLectureApplicationCountMap = useMemo(() => ({ ...lectureApplicationCountMap }), [lectureApplicationCountMap]);
 
   useEffect(() => {
     if (hydrated && !bootstrapLoaded) {
@@ -83,6 +68,14 @@ export default function HomePage() {
   }, [router, session?.role]);
 
   useEffect(() => {
+    if (!hydrated || !session?.participantId || currentParticipant?.id === session.participantId) {
+      return;
+    }
+
+    void fetchParticipantState(session.participantId);
+  }, [currentParticipant?.id, fetchParticipantState, hydrated, session?.participantId]);
+
+  useEffect(() => {
     const updateCurrentTime = () => {
       setCurrentTime(formatCurrentTime(new Date()));
     };
@@ -93,7 +86,6 @@ export default function HomePage() {
     return () => window.clearInterval(interval);
   }, []);
 
-  const currentParticipant = session ? findParticipantById(session.participantId, participants) : undefined;
   const purchasedDays = useMemo(
     () => (currentParticipant ? getPurchasedDays(currentParticipant.ticketText) : []),
     [currentParticipant],
@@ -246,6 +238,10 @@ export default function HomePage() {
     return <LoadingShell message="어드민 화면으로 이동 중입니다." />;
   }
 
+  if (session && !currentParticipant) {
+    return <LoadingShell message="참가자 정보를 불러오는 중입니다." />;
+  }
+
   if (!currentParticipant) {
     return (
       <HomeLogin
@@ -314,7 +310,7 @@ export default function HomePage() {
               currentTime={currentTime}
               timetableApplications={timetableApplications}
               purchasedDays={purchasedDays}
-              lectureApplicationCountMap={lectureApplicationCountMap}
+              lectureApplicationCountMap={effectiveLectureApplicationCountMap}
               onSelectDay={setActiveTimetableDay}
               onGoToMyLectures={handleGoToMyLectures}
             />
@@ -328,7 +324,7 @@ export default function HomePage() {
               currentParticipant={currentParticipant}
               lectures={lectures}
               lectureLookup={lectureLookup}
-              lectureApplicationCountMap={lectureApplicationCountMap}
+              lectureApplicationCountMap={effectiveLectureApplicationCountMap}
               onSelectDay={handleDaySelect}
               onSelectSlot={setActiveLectureSlot}
               onApplyLecture={handleApply}

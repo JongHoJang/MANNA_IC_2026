@@ -1,21 +1,22 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import type { AppSession, Application, DayKey, Lecture, Participant, TimeSlot, TimetableDay } from '@/types';
-import { findParticipantById } from '@/utils/session';
 import { hasPurchasedDay } from '@/utils/tickets';
 
 interface AppStore {
   session: AppSession | null;
-  participants: Participant[];
+  currentParticipant: Participant | null;
   lectures: Lecture[];
-  applications: Application[];
+  myApplications: Application[];
   timetableDays: TimetableDay[];
+  lectureApplicationCountMap: Record<string, number>;
   selectedDayByParticipantId: Record<string, DayKey>;
   hydrated: boolean;
   bootstrapLoaded: boolean;
   bootstrapError: string | null;
   setHydrated: (hydrated: boolean) => void;
   fetchBootstrap: () => Promise<void>;
+  fetchParticipantState: (participantId: string) => Promise<void>;
   login: (name: string, phone: string) => Promise<{
     success: boolean;
     message: string;
@@ -34,10 +35,11 @@ export const useAppStore = create<AppStore>()(
   persist(
     (set, get) => ({
       session: null,
-      participants: [],
+      currentParticipant: null,
       lectures: [],
-      applications: [],
+      myApplications: [],
       timetableDays: [],
+      lectureApplicationCountMap: {},
       selectedDayByParticipantId: {},
       hydrated: false,
       bootstrapLoaded: false,
@@ -58,12 +60,31 @@ export const useAppStore = create<AppStore>()(
         }
 
         set({
-          participants: payload.participants,
           lectures: payload.lectures,
-          applications: payload.applications,
+          lectureApplicationCountMap: payload.lectureApplicationCountMap ?? {},
           timetableDays: payload.timetableDays,
           bootstrapLoaded: true,
           bootstrapError: null,
+        });
+      },
+      fetchParticipantState: async (participantId) => {
+        const response = await fetch(`/api/participant-state?participantId=${encodeURIComponent(participantId)}`, {
+          cache: 'no-store',
+        });
+        const payload = await response.json();
+
+        if (!response.ok) {
+          set({
+            session: null,
+            currentParticipant: null,
+            myApplications: [],
+          });
+          return;
+        }
+
+        set({
+          currentParticipant: payload.participant,
+          myApplications: payload.applications ?? [],
         });
       },
       login: async (name, phone) => {
@@ -83,12 +104,11 @@ export const useAppStore = create<AppStore>()(
           };
         }
 
-        set((state) => ({
+        set({
           session: payload.session,
-          participants: state.participants.some((participant) => participant.id === payload.participant.id)
-            ? state.participants
-            : [...state.participants, payload.participant],
-        }));
+          currentParticipant: payload.participant,
+          myApplications: payload.applications ?? [],
+        });
 
         return {
           success: true,
@@ -96,7 +116,7 @@ export const useAppStore = create<AppStore>()(
           role: payload.session.role,
         };
       },
-      logout: () => set({ session: null }),
+      logout: () => set({ session: null, currentParticipant: null, myApplications: [] }),
       selectDay: (participantId, day) =>
         set((state) => ({
           selectedDayByParticipantId: {
@@ -105,10 +125,10 @@ export const useAppStore = create<AppStore>()(
           },
         })),
       applyLecture: async (participantId, day, timeSlot, lectureId) => {
-        const participant = findParticipantById(participantId, get().participants);
+        const participant = get().currentParticipant;
         const lecture = get().lectures.find((item) => item.id === lectureId);
 
-        if (!participant || !lecture) {
+        if (!participant || participant.id !== participantId || !lecture) {
           return {
             success: false,
             message: '신청 대상 정보를 찾을 수 없습니다.',
@@ -151,7 +171,8 @@ export const useAppStore = create<AppStore>()(
         }
 
         set({
-          applications: payload.applications,
+          myApplications: payload.applications ?? [],
+          lectureApplicationCountMap: payload.lectureApplicationCountMap ?? get().lectureApplicationCountMap,
         });
 
         return {
@@ -162,10 +183,11 @@ export const useAppStore = create<AppStore>()(
       resetDemo: () =>
         set({
           session: null,
-          participants: [],
+          currentParticipant: null,
           lectures: [],
-          applications: [],
+          myApplications: [],
           timetableDays: [],
+          lectureApplicationCountMap: {},
           selectedDayByParticipantId: {},
           bootstrapLoaded: false,
           bootstrapError: null,

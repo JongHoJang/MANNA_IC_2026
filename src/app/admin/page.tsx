@@ -3,18 +3,15 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/store/useAppStore';
-import { findParticipantById } from '@/utils/session';
 import { LoadingShell } from '@/components/ui/LoadingShell';
 import { AdminDashboard } from './_components/AdminDashboard';
 
 export default function AdminPage() {
   const router = useRouter();
   const session = useAppStore((state) => state.session);
-  const participants = useAppStore((state) => state.participants);
+  const currentParticipant = useAppStore((state) => state.currentParticipant);
   const hydrated = useAppStore((state) => state.hydrated);
-  const bootstrapLoaded = useAppStore((state) => state.bootstrapLoaded);
-  const bootstrapError = useAppStore((state) => state.bootstrapError);
-  const fetchBootstrap = useAppStore((state) => state.fetchBootstrap);
+  const fetchParticipantState = useAppStore((state) => state.fetchParticipantState);
   const logout = useAppStore((state) => state.logout);
 
   useEffect(() => {
@@ -24,19 +21,15 @@ export default function AdminPage() {
   }, [router, session]);
 
   useEffect(() => {
-    if (hydrated && !bootstrapLoaded) {
-      void fetchBootstrap();
+    if (!hydrated || !session?.participantId || currentParticipant?.id === session.participantId) {
+      return;
     }
-  }, [bootstrapLoaded, fetchBootstrap, hydrated]);
 
-  const currentParticipant = session ? findParticipantById(session.participantId, participants) : undefined;
+    void fetchParticipantState(session.participantId);
+  }, [currentParticipant?.id, fetchParticipantState, hydrated, session?.participantId]);
 
-  if (!hydrated || !bootstrapLoaded) {
+  if (!hydrated) {
     return <LoadingShell outerClassName="min-h-screen max-w-6xl" />;
-  }
-
-  if (bootstrapError) {
-    return <LoadingShell message={bootstrapError} outerClassName="min-h-screen max-w-6xl" />;
   }
 
   if (!session || session.role === 'user') {
