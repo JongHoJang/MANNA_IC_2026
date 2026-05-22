@@ -1,7 +1,7 @@
 import { applications as mockApplications, lectures as mockLectures, participants as mockParticipants, timetableDays as mockTimetableDays } from '@/mocks';
 import type { Application, DayKey, Lecture, Participant, TimetableDay, TimeSlot } from '@/types';
 import { createSession, findParticipantById, findParticipantByLogin, getRoleForParticipant } from '@/utils/session';
-import { findLectureById, getLectureEligibilityMessage, isLectureFull } from '@/utils/lectures';
+import { getLectureEligibilityMessage, isLectureFull } from '@/utils/lectures';
 import { createSupabaseServerClient, hasSupabaseServerEnv } from '@/lib/supabase/server';
 
 type BootstrapData = {
@@ -15,6 +15,7 @@ export type PublicBootstrapData = {
   lectures: Lecture[];
   timetableDays: TimetableDay[];
   lectureApplicationCountMap: Record<string, number>;
+  lectureApplicationBreakdownMap: Record<string, { first: number; second: number }>;
 };
 
 export type ParticipantStateData = {
@@ -144,6 +145,7 @@ function getMockPublicBootstrapData(): PublicBootstrapData {
     lectures: bootstrapData.lectures,
     timetableDays: bootstrapData.timetableDays,
     lectureApplicationCountMap: buildLectureApplicationCountMap(bootstrapData.applications),
+    lectureApplicationBreakdownMap: buildLectureApplicationBreakdownMap(bootstrapData.applications),
   };
 }
 
@@ -245,7 +247,7 @@ function validateParticipantSessionSelections(
       continue;
     }
 
-    const lecture = findLectureById(selection.lectureId, bootstrapData.lectures);
+    const lecture = bootstrapData.lectures.find((item) => item.id === selection.lectureId);
 
     if (!lecture) {
       return '선택한 세션 정보를 찾을 수 없습니다.';
@@ -360,7 +362,7 @@ function mapLectureRecord(lecture: LectureRecord): Lecture {
     speaker: lecture.speaker?.trim() || '비었음',
     position: lecture.position?.trim() || '비었음',
     location: lecture.location?.trim() || '비었음',
-    capacity: lecture.capacity ?? null,
+    capacity: normalizeCapacityValue(lecture.capacity),
     slotOrder: lecture.slot_order ?? null,
   };
 }
@@ -378,6 +380,21 @@ function mapRegistrationRecord(application: RegistrationRecord): Application {
 function buildLectureApplicationCountMap(applications: Application[]) {
   return applications.reduce<Record<string, number>>((counts, application) => {
     counts[application.lectureId] = (counts[application.lectureId] ?? 0) + 1;
+    return counts;
+  }, {});
+}
+
+function buildLectureApplicationBreakdownMap(applications: Application[]) {
+  return applications.reduce<Record<string, { first: number; second: number }>>((counts, application) => {
+    const current = counts[application.lectureId] ?? { first: 0, second: 0 };
+
+    if (application.timeSlot === '1타임') {
+      current.first += 1;
+    } else {
+      current.second += 1;
+    }
+
+    counts[application.lectureId] = current;
     return counts;
   }, {});
 }
@@ -400,6 +417,19 @@ function normalizeDbDate(value: string | Date | null | undefined, fallback: stri
   }
 
   return fallback;
+}
+
+function normalizeCapacityValue(value: number | string | null | undefined) {
+  if (typeof value === 'number') {
+    return value > 0 ? value : null;
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Number(value.trim());
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  }
+
+  return null;
 }
 
 function formatDayDate(day: DayKey) {
@@ -620,6 +650,7 @@ export async function loadPublicBootstrapData(): Promise<PublicBootstrapData> {
     lectures: lectureData.lectures,
     timetableDays: lectureData.timetableDays,
     lectureApplicationCountMap,
+    lectureApplicationBreakdownMap: buildLectureApplicationBreakdownMap(await loadApplicationRecords()),
   };
 }
 
@@ -693,8 +724,30 @@ export async function upsertLectureApplication(input: {
   timeSlot: TimeSlot;
   lectureId: string;
 }) {
+  const bootstrapData = await loadBootstrapData();
+  const lecture = bootstrapData.lectures.find((item) => item.id === input.lectureId);
+
+  if (!lecture) {
+    return {
+      success: false,
+      message: '선택한 세션 정보를 찾을 수 없습니다.',
+      applications: [],
+      lectureApplicationCountMap: {},
+      lectureApplicationBreakdownMap: {},
+    };
+  }
+
+  if (lecture.day !== input.day) {
+    return {
+      success: false,
+      message: '선택한 날짜와 세션 날짜가 일치하지 않습니다.',
+      applications: [],
+      lectureApplicationCountMap: {},
+      lectureApplicationBreakdownMap: {},
+    };
+  }
+
   if (!hasSupabaseServerEnv()) {
-    const bootstrapData = await loadBootstrapData();
     const nextApplications = getMockUpsertApplications(input, bootstrapData);
 
     return {
@@ -702,6 +755,7 @@ export async function upsertLectureApplication(input: {
       message: `${input.day} ${input.timeSlot} 선택이 반영되었습니다.`,
       applications: nextApplications.filter((application) => application.participantId === input.participantId),
       lectureApplicationCountMap: buildLectureApplicationCountMap(nextApplications),
+      lectureApplicationBreakdownMap: buildLectureApplicationBreakdownMap(nextApplications),
     };
   }
 
@@ -734,12 +788,14 @@ export async function upsertLectureApplication(input: {
       message: outcome.message,
       applications: [],
       lectureApplicationCountMap: {},
+      lectureApplicationBreakdownMap: {},
     };
   }
 
-  const [applications, lectureApplicationCountMap] = await Promise.all([
+  const [applications, lectureApplicationCountMap, allApplications] = await Promise.all([
     loadApplicationRecords(input.participantId),
     loadLectureApplicationCountMap(),
+    loadApplicationRecords(),
   ]);
 
   return {
@@ -747,6 +803,7 @@ export async function upsertLectureApplication(input: {
     message: outcome.message,
     applications,
     lectureApplicationCountMap,
+    lectureApplicationBreakdownMap: buildLectureApplicationBreakdownMap(allApplications),
   };
 }
 
@@ -794,7 +851,7 @@ async function updateParticipantSessions(
       continue;
     }
 
-    const lecture = findLectureById(selection.lectureId, bootstrapData.lectures);
+    const lecture = bootstrapData.lectures.find((item) => item.id === selection.lectureId);
 
     if (!lecture) {
       continue;

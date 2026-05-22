@@ -10,6 +10,7 @@ interface AppStore {
   myApplications: Application[];
   timetableDays: TimetableDay[];
   lectureApplicationCountMap: Record<string, number>;
+  lectureApplicationBreakdownMap: Record<string, { first: number; second: number }>;
   selectedDayByParticipantId: Record<string, DayKey>;
   hydrated: boolean;
   bootstrapLoaded: boolean;
@@ -40,6 +41,7 @@ export const useAppStore = create<AppStore>()(
       myApplications: [],
       timetableDays: [],
       lectureApplicationCountMap: {},
+      lectureApplicationBreakdownMap: {},
       selectedDayByParticipantId: {},
       hydrated: false,
       bootstrapLoaded: false,
@@ -62,6 +64,7 @@ export const useAppStore = create<AppStore>()(
         set({
           lectures: payload.lectures,
           lectureApplicationCountMap: payload.lectureApplicationCountMap ?? {},
+          lectureApplicationBreakdownMap: payload.lectureApplicationBreakdownMap ?? {},
           timetableDays: payload.timetableDays,
           bootstrapLoaded: true,
           bootstrapError: null,
@@ -173,6 +176,8 @@ export const useAppStore = create<AppStore>()(
         set({
           myApplications: payload.applications ?? [],
           lectureApplicationCountMap: payload.lectureApplicationCountMap ?? get().lectureApplicationCountMap,
+          lectureApplicationBreakdownMap:
+            payload.lectureApplicationBreakdownMap ?? get().lectureApplicationBreakdownMap,
         });
 
         return {
@@ -188,6 +193,7 @@ export const useAppStore = create<AppStore>()(
           myApplications: [],
           timetableDays: [],
           lectureApplicationCountMap: {},
+          lectureApplicationBreakdownMap: {},
           selectedDayByParticipantId: {},
           bootstrapLoaded: false,
           bootstrapError: null,

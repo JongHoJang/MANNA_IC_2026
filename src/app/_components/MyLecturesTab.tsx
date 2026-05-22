@@ -31,6 +31,7 @@ export function MyLecturesTab({
   onSelectSlot,
   onApplyLecture,
   lectureApplicationCountMap,
+  lectureApplicationBreakdownMap,
 }: {
   activeDay: DayKey;
   activeSlot: TimeSlot;
@@ -43,6 +44,7 @@ export function MyLecturesTab({
   onSelectSlot: (slot: TimeSlot) => void;
   onApplyLecture: (day: DayKey, timeSlot: TimeSlot, lectureId: string) => Promise<boolean>;
   lectureApplicationCountMap: Record<string, number>;
+  lectureApplicationBreakdownMap: Record<string, { first: number; second: number }>;
 }) {
   const dayApplications = applications.filter(
     (application) => application.participantId === currentParticipant.id && application.day === activeDay,
@@ -141,8 +143,18 @@ export function MyLecturesTab({
     setConfirmTarget(null);
   }
 
-  function renderLectureLocation(lecture: Lecture) {
-    const applicationCount = lectureApplicationCountMap[lecture.id] ?? 0;
+  function getApplicationCountForSlot(lectureId: string, slot: TimeSlot) {
+    const breakdown = lectureApplicationBreakdownMap[lectureId];
+
+    if (!breakdown) {
+      return lectureApplicationCountMap[lectureId] ?? 0;
+    }
+
+    return slot === '1타임' ? breakdown.first : breakdown.second;
+  }
+
+  function renderLectureLocation(lecture: Lecture, slot: TimeSlot) {
+    const applicationCount = getApplicationCountForSlot(lecture.id, slot);
     const capacityLabel = getLectureCapacityLabel(lecture, applicationCount);
     const lectureIsFull = isLectureFull(lecture, applicationCount);
 
@@ -265,7 +277,7 @@ export function MyLecturesTab({
                         </span>
                         <span className="flex items-start gap-1.5">
                           <PinMark />
-                          {renderLectureLocation(displayedLecture)}
+                          {renderLectureLocation(displayedLecture, slot)}
                         </span>
                       </div>
                     </div>
@@ -307,7 +319,7 @@ export function MyLecturesTab({
                       const itemApplication = dayApplications.find((value) => value.lectureId === item.id);
                       const itemIsSelectedElsewhere = itemApplication && itemApplication.timeSlot !== slot;
                       const itemEligibilityMessage = getLectureEligibilityMessage(item, currentParticipant.position);
-                      const itemApplicationCount = lectureApplicationCountMap[item.id] ?? 0;
+                      const itemApplicationCount = getApplicationCountForSlot(item.id, slot);
                       const itemIsFull = isLectureFull(item, itemApplicationCount);
                       const itemIsCurrentSelection = application?.lectureId === item.id;
                       const itemHeading = splitLectureHeading(item.title, item.sessionNo);
@@ -384,7 +396,7 @@ export function MyLecturesTab({
                               </p>
                               <p className="flex items-start gap-1.5">
                                 <PinMark />
-                                {renderLectureLocation(item)}
+                                {renderLectureLocation(item, slot)}
                               </p>
                             </div>
                             {itemIsSelectedElsewhere ? (
@@ -441,7 +453,7 @@ export function MyLecturesTab({
                         </p>
                         <p className="flex items-start gap-1.5">
                           <PinMark />
-                          {renderLectureLocation(currentLecture)}
+                          {renderLectureLocation(currentLecture, confirmTarget.slot)}
                         </p>
                       </div>
                     </div>
@@ -478,7 +490,7 @@ export function MyLecturesTab({
                         </p>
                         <p className="flex items-start gap-1.5">
                           <PinMark />
-                          {renderLectureLocation(confirmLecture)}
+                          {renderLectureLocation(confirmLecture, confirmTarget.slot)}
                         </p>
                       </div>
                     </div>
@@ -504,7 +516,7 @@ export function MyLecturesTab({
                     </p>
                     <p className="flex items-start gap-1.5">
                       <PinMark />
-                      {renderLectureLocation(confirmLecture)}
+                      {renderLectureLocation(confirmLecture, confirmTarget.slot)}
                     </p>
                   </div>
                 </div>

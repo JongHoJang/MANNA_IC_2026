@@ -27,6 +27,7 @@ export default function HomePage() {
   const applications = useAppStore((state) => state.myApplications);
   const timetableDays = useAppStore((state) => state.timetableDays);
   const lectureApplicationCountMap = useAppStore((state) => state.lectureApplicationCountMap);
+  const lectureApplicationBreakdownMap = useAppStore((state) => state.lectureApplicationBreakdownMap);
   const selectedDayByParticipantId = useAppStore((state) => state.selectedDayByParticipantId);
   const hydrated = useAppStore((state) => state.hydrated);
   const bootstrapLoaded = useAppStore((state) => state.bootstrapLoaded);
@@ -56,6 +57,10 @@ export default function HomePage() {
     [lectures],
   );
   const effectiveLectureApplicationCountMap = useMemo(() => ({ ...lectureApplicationCountMap }), [lectureApplicationCountMap]);
+  const effectiveLectureApplicationBreakdownMap = useMemo(
+    () => ({ ...lectureApplicationBreakdownMap }),
+    [lectureApplicationBreakdownMap],
+  );
 
   useEffect(() => {
     if (hydrated && !bootstrapLoaded) {
@@ -336,6 +341,7 @@ export default function HomePage() {
               lectures={lectures}
               lectureLookup={lectureLookup}
               lectureApplicationCountMap={effectiveLectureApplicationCountMap}
+              lectureApplicationBreakdownMap={effectiveLectureApplicationBreakdownMap}
               onSelectDay={handleDaySelect}
               onSelectSlot={setActiveLectureSlot}
               onApplyLecture={handleApply}
