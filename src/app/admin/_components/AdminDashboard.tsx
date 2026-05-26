@@ -1,16 +1,16 @@
 'use client';
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, useTransition, type ReactNode } from 'react';
 import type { Application, DayKey, Lecture, Participant, TimeSlot } from '@/types';
-import { Notice } from '@/components/ui/Notice';
 import {
   getApplicationCountByLecture,
   getApplicationsByDayForParticipant,
   getMissingDaysForParticipant,
 } from '@/utils/applications';
 import { sortLecturesBySessionNo } from '@/utils/lectures';
-import { DAY_ORDER } from '@/utils/tickets';
+import { DAY_LABELS, DAY_ORDER } from '@/utils/tickets';
 import { AdminParticipantDetailPanel } from './AdminParticipantDetailPanel';
+import { AdminOverviewMetrics } from './AdminOverviewMetrics';
 import { AdminParticipantTable, type AdminParticipantRow } from './AdminParticipantTable';
 import { AdminSessionStats } from './AdminSessionStats';
 
@@ -40,8 +40,7 @@ type FormState = {
 };
 
 type SessionDraft = Record<DayKey, Record<TimeSlot, string>>;
-
-type SectionKey = 'participants' | 'sessions';
+type SectionKey = 'dashboard' | 'participants' | 'sessions';
 type ToggleOption<T extends string> = {
   label: string;
   value: T;
@@ -49,6 +48,8 @@ type ToggleOption<T extends string> = {
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
 const ADMIN_SECTION_STORAGE_KEY = 'manna-admin-section';
+const ADMIN_REFRESH_INTERVAL_MS = 30_000;
+const ADMIN_TOAST_DURATION_MS = 3200;
 
 function buildPageNumbers(currentPage: number, totalPages: number) {
   if (totalPages <= 7) {
@@ -64,24 +65,6 @@ function buildPageNumbers(currentPage: number, totalPages: number) {
   }
 
   return [1, currentPage - 1, currentPage, currentPage + 1, totalPages];
-}
-
-function MetricCard({
-  label,
-  value,
-  detail,
-}: {
-  label: string;
-  value: string;
-  detail?: string;
-}) {
-  return (
-    <div className="rounded-[10px] border border-[#ddd7cc] bg-white px-5 py-5">
-      <p className="text-[12px] font-semibold uppercase tracking-[0.18em] text-[#6d6961]">{label}</p>
-      <p className="mt-3 text-[2.7rem] font-semibold leading-none tracking-[-0.06em] text-[#241b16]">{value}</p>
-      {detail ? <p className="mt-3 text-[14px] text-[#6f6258]">{detail}</p> : null}
-    </div>
-  );
 }
 
 function AdminSectionHeader({
@@ -292,7 +275,6 @@ export function AdminDashboard({
     { label: '완료', value: 'complete' },
     { label: '미완료', value: 'incomplete' },
   ];
-
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [lectures, setLectures] = useState<Lecture[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
@@ -312,20 +294,48 @@ export function AdminDashboard({
   const [statusMessage, setStatusMessage] = useState<string | null>(message);
   const [section, setSection] = useState<SectionKey>(() => {
     if (typeof window === 'undefined') {
-      return 'participants';
+      return 'dashboard';
     }
 
     const savedSection = window.localStorage.getItem(ADMIN_SECTION_STORAGE_KEY);
-    return savedSection === 'sessions' ? 'sessions' : 'participants';
+    return savedSection === 'participants' || savedSection === 'sessions' || savedSection === 'dashboard'
+      ? savedSection
+      : 'dashboard';
   });
   const [detailOpen, setDetailOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(50);
+  const [isRefreshing, startRefreshTransition] = useTransition();
+
+  const fetchAdminData = useCallback(async (showLoadingShell = false) => {
+    if (showLoadingShell) {
+      setLoading(true);
+    }
+
+    try {
+      const response = await fetch('/api/admin/participants', { cache: 'no-store' });
+      const payload = (await response.json()) as AdminPayload & { message?: string };
+
+      if (!response.ok) {
+        throw new Error(payload.message ?? '어드민 데이터를 불러오지 못했습니다.');
+      }
+
+      setParticipants(payload.participants);
+      setLectures(payload.lectures);
+      setApplications(payload.applications);
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : '어드민 데이터를 불러오지 못했습니다.');
+    } finally {
+      if (showLoadingShell) {
+        setLoading(false);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     let active = true;
 
-    async function fetchAdminData() {
+    void (async () => {
       setLoading(true);
 
       try {
@@ -354,18 +364,54 @@ export function AdminDashboard({
           setLoading(false);
         }
       }
-    }
-
-    void fetchAdminData();
+    })();
 
     return () => {
       active = false;
     };
-  }, []);
+  }, [fetchAdminData]);
+
+  useEffect(() => {
+    function refreshInBackground() {
+      startRefreshTransition(() => {
+        void fetchAdminData(false);
+      });
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'visible') {
+        refreshInBackground();
+      }
+    }
+
+    window.addEventListener('focus', refreshInBackground);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    const interval = window.setInterval(refreshInBackground, ADMIN_REFRESH_INTERVAL_MS);
+
+    return () => {
+      window.removeEventListener('focus', refreshInBackground);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.clearInterval(interval);
+    };
+  }, [fetchAdminData]);
 
   useEffect(() => {
     window.localStorage.setItem(ADMIN_SECTION_STORAGE_KEY, section);
   }, [section]);
+
+  useEffect(() => {
+    if (!statusMessage) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setStatusMessage(null);
+    }, ADMIN_TOAST_DURATION_MS);
+
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [statusMessage]);
 
   const rows: AdminParticipantRow[] = participants.map((participant) => {
     const byDay = getApplicationsByDayForParticipant(applications, participant.id);
@@ -422,7 +468,6 @@ export function AdminDashboard({
 
     return true;
   });
-
   useEffect(() => {
     setPage(1);
   }, [filters.query, filters.ticket, filters.completion, filters.missingDay]);
@@ -495,10 +540,55 @@ export function AdminDashboard({
       return acc;
     }, {});
   }, [applications, participants]);
-  const totalParticipants = participants.length;
-  const completedParticipants = rows.filter((row) => row.missingDays.length === 0).length;
+  const activeRows = rows.filter((row) => !row.participant.isAdmin);
+  const activeParticipants = participants.filter((participant) => !participant.isAdmin);
+  const totalParticipants = activeParticipants.length;
+  const completedParticipants = activeRows.filter((row) => row.missingDays.length === 0).length;
   const incompleteParticipants = totalParticipants - completedParticipants;
   const completionRate = totalParticipants > 0 ? Math.round((completedParticipants / totalParticipants) * 1000) / 10 : 0;
+  const dayRegistrationCounts = useMemo(
+    () =>
+      DAY_ORDER.map((day) => ({
+        day,
+        label: DAY_LABELS[day],
+        count: new Set(
+          applications
+            .filter((application) => application.day === day)
+            .map((application) => application.participantId),
+        ).size,
+      })),
+    [applications],
+  );
+  const positionTop5 = useMemo(() => {
+    const counts = activeParticipants.reduce<Record<string, number>>((acc, participant) => {
+      const position = participant.position?.trim() || '직분 미입력';
+      acc[position] = (acc[position] ?? 0) + 1;
+      return acc;
+    }, {});
+
+    return Object.entries(counts)
+      .map(([label, count]) => ({ label, count }))
+      .sort((left, right) => (right.count !== left.count ? right.count - left.count : left.label.localeCompare(right.label, 'ko')))
+      .slice(0, 5);
+  }, [activeParticipants]);
+  const popularLecturesByDay = useMemo(
+    () =>
+      DAY_ORDER.map((day) => ({
+        day,
+        dayLabel: DAY_LABELS[day],
+        items: lectures
+          .filter((lecture) => lecture.day === day)
+          .map((lecture) => ({
+            id: lecture.id,
+            title: lecture.title,
+            dayLabel: DAY_LABELS[lecture.day],
+            count: lectureCountMap[lecture.id] ?? 0,
+          }))
+          .sort((left, right) => (right.count !== left.count ? right.count - left.count : left.title.localeCompare(right.title, 'ko')))
+          .slice(0, 3),
+      })),
+    [lectureCountMap, lectures],
+  );
 
   async function handleSave() {
     if (!selectedRow) {
@@ -553,7 +643,7 @@ export function AdminDashboard({
 
       if (!response.ok) {
         const payload = (await response.json()) as { message?: string };
-        throw new Error(payload.message ?? '엑셀 다운로드에 실패했습니다.');
+        throw new Error(payload.message ?? 'CSV 다운로드에 실패했습니다.');
       }
 
       const blob = await response.blob();
@@ -651,7 +741,9 @@ export function AdminDashboard({
   }
 
   function handleRefresh() {
-    window.location.reload();
+    startRefreshTransition(() => {
+      void fetchAdminData(true);
+    });
   }
 
   return (
@@ -670,6 +762,7 @@ export function AdminDashboard({
           </div>
 
           <div className="space-y-1">
+            <SidebarItem active={section === 'dashboard'} label="대시보드" onClick={() => setSection('dashboard')} />
             <SidebarItem active={section === 'participants'} label="참가자 관리" onClick={() => setSection('participants')} />
             <SidebarItem active={section === 'sessions'} label="선택세션 통계" onClick={() => setSection('sessions')} />
           </div>
@@ -683,7 +776,7 @@ export function AdminDashboard({
                 className="mt-3 flex w-full items-center gap-3 rounded-xl border border-white/12 bg-white/8 px-4 py-3 text-left text-[15px] font-medium text-white/88 transition hover:bg-white/12"
               >
                 <span>↻</span>
-                <span>새로고침</span>
+                <span>{isRefreshing ? '동기화 중...' : '새로고침'}</span>
               </button>
             </div>
           </div>
@@ -699,14 +792,35 @@ export function AdminDashboard({
         </aside>
 
         <div className="min-w-0">
+          {statusMessage ? (
+            <div className="pointer-events-none fixed right-6 top-6 z-[120] max-w-[420px]">
+              <div className="rounded-2xl border border-[#d8c89f] bg-[rgba(255,253,247,0.96)] px-4 py-3 text-sm text-[#3d3428] shadow-[0_18px_40px_rgba(0,0,0,0.14)] backdrop-blur-sm">
+                {statusMessage}
+              </div>
+            </div>
+          ) : null}
+
           <div className="space-y-6 px-7 py-7">
-            {statusMessage ? <Notice>{statusMessage}</Notice> : null}
+            {section === 'dashboard' ? (
+              <>
+                <AdminOverviewMetrics
+                  totalParticipants={totalParticipants}
+                  completedParticipants={completedParticipants}
+                  incompleteParticipants={incompleteParticipants}
+                  completionRate={completionRate}
+                  dayRegistrationCounts={dayRegistrationCounts}
+                  positionTop5={positionTop5}
+                  popularLecturesByDay={popularLecturesByDay}
+                />
+              </>
+            ) : null}
 
             {section === 'participants' ? (
               <>
+
                 <AdminSectionHeader
                   title="참가자 관리"
-                  description="활성 참가자 명단과 선택세션 신청 상태를 한 화면에서 관리합니다."
+                  description="참가자 명단과 선택세션 신청 상태를 확인할 수 있습니다."
                   action={
                     <button
                       type="button"
@@ -836,7 +950,7 @@ export function AdminDashboard({
               <>
                 <AdminSectionHeader
                   title="선택세션 통계"
-                  description="Day별 세션 신청 현황과 각 세션 신청자 명단을 확인합니다."
+                  description="선택세션 통계를 클릭하면 첫번째 선택과 두번째 선택 신청자를 확인할 수 있습니다."
                   action={
                     <button
                       type="button"
@@ -849,26 +963,7 @@ export function AdminDashboard({
                   }
                 />
 
-                <div className="grid gap-5 xl:grid-cols-4">
-                  <MetricCard label="전체 참가자 수" value={`${totalParticipants}명`} />
-                  <MetricCard
-                    label="신청 완료 인원"
-                    value={`${completedParticipants}명`}
-                    detail={`전체 ${totalParticipants}명 중 ${completedParticipants}명`}
-                  />
-                  <MetricCard
-                    label="미신청 인원"
-                    value={`${incompleteParticipants}명`}
-                    detail={`전체 ${totalParticipants}명 중 ${incompleteParticipants}명`}
-                  />
-                  <MetricCard label="신청 완료율" value={`${completionRate}%`} />
-                </div>
-
-                <section className="space-y-5 pt-4">
-                  <div>
-                    <h2 className="text-[2.15rem] font-semibold tracking-[-0.06em] text-[#232425]">선택 세션 참가자 현황</h2>
-                    <p className="mt-2 text-[14px] text-[#8a7d72]">선택 세션을 클릭하면 첫번째 선택과 두번째 선택 신청자를 확인할 수 있습니다.</p>
-                  </div>
+                <section className="space-y-5">
                   <AdminSessionStats
                     lectures={visibleLectures}
                     countMap={lectureCountMap}

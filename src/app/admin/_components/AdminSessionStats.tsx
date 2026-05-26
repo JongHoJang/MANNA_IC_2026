@@ -43,7 +43,7 @@ function SessionCard({
     <button
       type="button"
       onClick={onOpen}
-      className="w-full rounded-[10px] border border-[#ddd7cc] bg-white px-5 py-5 text-left transition hover:border-[#cfc8bb] hover:bg-[#fcfbf8]"
+      className="w-full rounded-[10px] border border-[#ddd7cc] bg-white px-5 py-5 text-left transition hover:-translate-y-[2px] hover:border-[#b99a2f] hover:bg-[#fffdf7] hover:shadow-[0_16px_36px_rgba(154,123,0,0.14)] focus-visible:-translate-y-[2px] focus-visible:border-[#8a6d00] focus-visible:bg-[#fffdf7] focus-visible:shadow-[0_0_0_3px_rgba(154,123,0,0.18),0_16px_36px_rgba(154,123,0,0.14)] focus-visible:outline-none active:translate-y-0"
     >
       <div>
         <h3 className="truncate text-[1.08rem] font-semibold leading-8 text-[#232425]">{getLectureDisplayTitle(lecture)}</h3>

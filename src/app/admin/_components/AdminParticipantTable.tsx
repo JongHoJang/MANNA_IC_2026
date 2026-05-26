@@ -194,14 +194,14 @@ export function AdminParticipantTable({
       <div className="hidden overflow-x-auto lg:block">
         <table className="min-w-[1080px] w-full table-fixed text-[14px]">
           <colgroup>
-            <col style={{ width: '5.5%' }} />
-            <col style={{ width: '8%' }} />
-            <col style={{ width: '8%' }} />
-            <col style={{ width: '8%' }} />
-            <col style={{ width: '8%' }} />
-            <col style={{ width: '20.8333%' }} />
-            <col style={{ width: '20.8333%' }} />
-            <col style={{ width: '20.8334%' }} />
+            <col style={{ width: '4.5%' }} />
+            <col style={{ width: '7%' }} />
+            <col style={{ width: '10%' }} />
+            <col style={{ width: '6%' }} />
+            <col style={{ width: '12%' }} />
+            <col style={{ width: '20.1666%' }} />
+            <col style={{ width: '20.1667%' }} />
+            <col style={{ width: '20.1667%' }} />
           </colgroup>
           <thead>
             <tr className="bg-[#f8f3e7] text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-[#8a7b63]">

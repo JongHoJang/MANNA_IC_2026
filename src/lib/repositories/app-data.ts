@@ -27,6 +27,7 @@ type ParticipantRecord = {
   id: string;
   name: string;
   phone: string;
+  created_at?: string | Date | null;
   is_active?: boolean | null;
   position: string | null;
   email?: string | null;
@@ -108,6 +109,7 @@ type ParticipantLoginRpcRow = {
   id: string;
   name: string;
   phone: string;
+  created_at?: string | Date | null;
   is_active?: boolean | null;
   position: string | null;
   email?: string | null;
@@ -339,6 +341,7 @@ function mapParticipantRecord(participant: ParticipantRecord): Participant {
     id: participant.id,
     name: participant.name,
     phone: participant.phone,
+    createdAt: normalizeDbDate(participant.created_at, ''),
     isActive: participant.is_active ?? true,
     ticketText: buildTicketText(participant) || '비었음',
     ticketInfo: participant.ticket_info?.trim() || null,
@@ -525,24 +528,43 @@ async function loadLectureRecordsAndTimetable() {
 
 async function loadApplicationRecords(participantId?: string) {
   const supabase = createSupabaseServerClient();
+  const pageSize = 1000;
 
   if (!supabase) {
     throw new Error('Supabase client is not configured.');
   }
 
-  let query = supabase.from('registrations').select('id, participant_id, day, slot_order, lecture_id').order('created_at');
+  const rows: RegistrationRecord[] = [];
+  let from = 0;
 
-  if (participantId) {
-    query = query.eq('participant_id', participantId);
+  while (true) {
+    let query = supabase
+      .from('registrations')
+      .select('id, participant_id, day, slot_order, lecture_id')
+      .order('created_at')
+      .range(from, from + pageSize - 1);
+
+    if (participantId) {
+      query = query.eq('participant_id', participantId);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    const batch = (data ?? []) as RegistrationRecord[];
+    rows.push(...batch);
+
+    if (batch.length < pageSize) {
+      break;
+    }
+
+    from += pageSize;
   }
 
-  const { data, error } = await query;
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return ((data ?? []) as RegistrationRecord[]).map(mapRegistrationRecord);
+  return rows.map(mapRegistrationRecord);
 }
 
 async function loadParticipantById(participantId: string) {
@@ -554,7 +576,7 @@ async function loadParticipantById(participantId: string) {
 
   const { data, error } = await supabase
     .from('participants')
-    .select('id, name, phone, is_active, position, email, organization, is_admin, ticket_info, day1, day2, day3')
+    .select('id, name, phone, created_at, is_active, position, email, organization, is_admin, ticket_info, day1, day2, day3')
     .eq('id', participantId)
     .maybeSingle();
 
@@ -619,7 +641,7 @@ export async function loadBootstrapData(): Promise<BootstrapData> {
   }
 
   const [participantsResult, lectureData, applications] = await Promise.all([
-    supabase.from('participants').select('id, name, phone, is_active, position, email, organization, is_admin, ticket_info, day1, day2, day3').order('created_at'),
+    supabase.from('participants').select('id, name, phone, created_at, is_active, position, email, organization, is_admin, ticket_info, day1, day2, day3').order('created_at'),
     loadLectureRecordsAndTimetable(),
     loadApplicationRecords(),
   ]);
@@ -922,7 +944,7 @@ export async function updateAdminParticipant(participantId: string, input: Parti
     .update(payload)
     .eq('id', participantId)
     .eq('is_admin', false)
-    .select('id, name, phone, is_active, position, email, organization, is_admin, ticket_info, day1, day2, day3')
+    .select('id, name, phone, created_at, is_active, position, email, organization, is_admin, ticket_info, day1, day2, day3')
     .single();
 
   if (error || !data) {

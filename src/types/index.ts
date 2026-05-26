@@ -8,6 +8,7 @@ export interface Participant {
   id: string;
   name: string;
   phone: string;
+  createdAt?: string | null;
   isActive?: boolean;
   ticketText: string;
   ticketInfo?: string | null;

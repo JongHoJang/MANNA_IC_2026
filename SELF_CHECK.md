@@ -20,6 +20,13 @@
 - mock 데이터와 Supabase 로더가 같은 shape를 사용하도록 리포지토리 매핑을 통일했다.
 - admin API는 `GET /api/admin/participants`, `PATCH /api/admin/participants/[participantId]`, `GET /api/admin/export` 3개로 구성했다.
 - 전체 빌드를 통과시키기 위해 기존 사용자 화면의 미사용 prop/import 두 건도 최소 수정했다.
+- 참가자 상세 패널에 읽기 전용 메타 정보(참가자 ID, 관리자 여부, 생성 시각)를 추가했다.
+- 참가자 상세 패널의 이름, 연락처, 직분, 이메일, 소속을 다시 수정 가능 상태로 연결했다.
+- `participants` 조회/업데이트 경로에 `created_at`을 포함해 `createdAt`으로 매핑되도록 보강했다.
+- `/api/admin/logout`에도 관리자 세션 검증을 적용해 `/api/admin/**` 권한 정책을 일관되게 맞췄다.
+- 참가자 필터 바에 `미신청 Day` 토글과 `미신청 추적` 섹션을 추가했다.
+- 미신청자 다운로드를 CSV 우선 형식으로 정리하고 `이름, 연락처, 이메일, 티켓 정보, 미신청 Day` 컬럼을 포함했다.
+- 상단 KPI에 전체 등록 건수를 추가하고 세션 통계에 날짜 필터를 넣었다.
 
 ## 검증
 
