@@ -3,7 +3,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Application, DayKey, Lecture, Participant, TimeSlot } from '@/types';
 import { DAY_LABELS, DAY_ORDER } from '@/utils/tickets';
-import { formatLectureSpeakerMeta, getLectureCapacityLabel, getLectureEligibilityMessage, isLectureFull, normalizePlaceLabel, sortLecturesBySessionNo } from '@/utils/lectures';
+import {
+  formatLectureSpeakerMeta,
+  getLectureCapacityLabel,
+  getLectureEligibilityMessage,
+  getLectureTimeSlotRestrictionMessage,
+  isLectureFull,
+  normalizePlaceLabel,
+  sortLecturesBySessionNo,
+} from '@/utils/lectures';
 import { splitLectureHeading } from './home-helpers';
 import { PencilMark, PersonMark, PinMark } from './home-marks';
 import { ModalPortal } from './ModalPortal';
@@ -318,12 +326,15 @@ export function MyLecturesTab({
                       const itemPendingInSlot = pendingLectureId === item.id;
                       const itemApplication = dayApplications.find((value) => value.lectureId === item.id);
                       const itemIsSelectedElsewhere = itemApplication && itemApplication.timeSlot !== slot;
+                      const itemTimeSlotRestrictionMessage = getLectureTimeSlotRestrictionMessage(item, slot);
                       const itemEligibilityMessage = getLectureEligibilityMessage(item, currentParticipant.position);
                       const itemApplicationCount = getApplicationCountForSlot(item.id, slot);
                       const itemIsFull = isLectureFull(item, itemApplicationCount);
                       const itemIsCurrentSelection = application?.lectureId === item.id;
                       const itemHeading = splitLectureHeading(item.title, item.sessionNo);
-                      const itemDisabled = Boolean(itemIsSelectedElsewhere || itemEligibilityMessage);
+                      const itemDisabled = Boolean(
+                        itemIsSelectedElsewhere || itemTimeSlotRestrictionMessage || itemEligibilityMessage,
+                      );
 
                       return (
                         <button
@@ -338,6 +349,10 @@ export function MyLecturesTab({
                           type="button"
                           onClick={() => {
                             if (itemIsSelectedElsewhere) {
+                              return;
+                            }
+
+                            if (itemTimeSlotRestrictionMessage) {
                               return;
                             }
 
@@ -372,7 +387,7 @@ export function MyLecturesTab({
                             'flex w-full items-start justify-between gap-3 rounded-[16px] border px-3 py-3 text-left transition',
                             itemPendingInSlot
                               ? 'border-[color:var(--accent)] bg-[rgba(238,202,126,0.2)] shadow-[0_8px_22px_rgba(37,24,17,0.06)]'
-                              : itemIsSelectedElsewhere || itemEligibilityMessage || (itemIsFull && !itemIsCurrentSelection)
+                              : itemIsSelectedElsewhere || itemTimeSlotRestrictionMessage || itemEligibilityMessage || (itemIsFull && !itemIsCurrentSelection)
                                 ? 'cursor-not-allowed border-[color:var(--line)] bg-white/55 opacity-45'
                                 : 'border-[color:var(--line)] bg-white hover:bg-white',
                           ].join(' ')}
@@ -407,6 +422,11 @@ export function MyLecturesTab({
                             {itemEligibilityMessage ? (
                               <span className="mt-2 inline-flex rounded-full bg-[#e8e8e8] px-2.5 py-1 text-xs font-medium text-[color:var(--muted)]">
                                 {itemEligibilityMessage}
+                              </span>
+                            ) : null}
+                            {itemTimeSlotRestrictionMessage ? (
+                              <span className="mt-2 inline-flex rounded-full bg-[#e8e8e8] px-2.5 py-1 text-xs font-medium text-[color:var(--muted)]">
+                                {itemTimeSlotRestrictionMessage}
                               </span>
                             ) : null}
                           </div>

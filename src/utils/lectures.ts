@@ -47,8 +47,25 @@ function normalizeParticipantPosition(position: string | null | undefined) {
   return (position ?? '').replace(/\s+/g, '');
 }
 
+function normalizeLectureTitle(title: string | null | undefined) {
+  return (title ?? '').replace(/\s+/g, '');
+}
+
+export function isLectureFirstSlotOnly(lecture: Lecture) {
+  const normalizedTitle = normalizeLectureTitle(lecture.title);
+  return normalizedTitle.includes('커피챗');
+}
+
+export function getLectureTimeSlotRestrictionMessage(lecture: Lecture, timeSlot: TimeSlot) {
+  if (isLectureFirstSlotOnly(lecture) && timeSlot !== '1타임') {
+    return '이 세션은 첫번째 선택세션에서만 선택할 수 있습니다.';
+  }
+
+  return null;
+}
+
 export function getLectureEligibilityMessage(lecture: Lecture, participantPosition: string | null | undefined) {
-  const normalizedTitle = lecture.title.replace(/\s+/g, '');
+  const normalizedTitle = normalizeLectureTitle(lecture.title);
   const normalizedPosition = normalizeParticipantPosition(participantPosition);
 
   if (normalizedTitle.includes('목사님출입금지')) {

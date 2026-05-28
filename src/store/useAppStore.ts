@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import type { AppSession, Application, DayKey, Lecture, Participant, TimeSlot, TimetableDay } from '@/types';
 import { hasPurchasedDay } from '@/utils/tickets';
+import { getLectureTimeSlotRestrictionMessage } from '@/utils/lectures';
 
 interface AppStore {
   session: AppSession | null;
@@ -142,6 +143,15 @@ export const useAppStore = create<AppStore>()(
           return {
             success: false,
             message: '선택한 날짜와 세션 날짜가 일치하지 않습니다.',
+          };
+        }
+
+        const timeSlotRestrictionMessage = getLectureTimeSlotRestrictionMessage(lecture, timeSlot);
+
+        if (timeSlotRestrictionMessage) {
+          return {
+            success: false,
+            message: timeSlotRestrictionMessage,
           };
         }
 

@@ -1,6 +1,6 @@
 import { ModalPortal } from '@/app/_components/ModalPortal';
 import type { DayKey, Participant, TimeSlot, Lecture } from '@/types';
-import { TIME_SLOTS } from '@/utils/lectures';
+import { getLectureTimeSlotRestrictionMessage, TIME_SLOTS } from '@/utils/lectures';
 import { DAY_ORDER, SESSION_DAY_LABELS, TICKET_DAY_LABELS } from '@/utils/tickets';
 
 type FormState = {
@@ -206,7 +206,10 @@ export function AdminParticipantDetailPanel({
                                       <option
                                         key={lecture.id}
                                         value={lecture.id}
-                                        disabled={selectedOtherLectureId === lecture.id && sessionDraft[day][timeSlot] !== lecture.id}
+                                        disabled={
+                                          (selectedOtherLectureId === lecture.id && sessionDraft[day][timeSlot] !== lecture.id) ||
+                                          Boolean(getLectureTimeSlotRestrictionMessage(lecture, timeSlot))
+                                        }
                                       >
                                         {getLectureOptionLabel(lecture)}
                                       </option>

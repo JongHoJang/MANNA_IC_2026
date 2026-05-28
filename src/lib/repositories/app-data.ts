@@ -1,7 +1,7 @@
 import { applications as mockApplications, lectures as mockLectures, participants as mockParticipants, timetableDays as mockTimetableDays } from '@/mocks';
 import type { Application, DayKey, Lecture, Participant, TimetableDay, TimeSlot } from '@/types';
 import { createSession, findParticipantById, findParticipantByLogin, getRoleForParticipant } from '@/utils/session';
-import { getLectureEligibilityMessage, isLectureFull } from '@/utils/lectures';
+import { getLectureEligibilityMessage, getLectureTimeSlotRestrictionMessage, isLectureFull } from '@/utils/lectures';
 import { createSupabaseServerClient, hasSupabaseServerEnv } from '@/lib/supabase/server';
 
 type BootstrapData = {
@@ -257,6 +257,12 @@ function validateParticipantSessionSelections(
 
     if (lecture.day !== selection.day) {
       return '선택한 날짜와 세션 날짜가 일치하지 않습니다.';
+    }
+
+    const timeSlotRestrictionMessage = getLectureTimeSlotRestrictionMessage(lecture, selection.timeSlot);
+
+    if (timeSlotRestrictionMessage) {
+      return timeSlotRestrictionMessage;
     }
 
     const eligibilityMessage = getLectureEligibilityMessage(lecture, effectiveParticipantPosition);
@@ -763,6 +769,18 @@ export async function upsertLectureApplication(input: {
     return {
       success: false,
       message: '선택한 날짜와 세션 날짜가 일치하지 않습니다.',
+      applications: [],
+      lectureApplicationCountMap: {},
+      lectureApplicationBreakdownMap: {},
+    };
+  }
+
+  const timeSlotRestrictionMessage = getLectureTimeSlotRestrictionMessage(lecture, input.timeSlot);
+
+  if (timeSlotRestrictionMessage) {
+    return {
+      success: false,
+      message: timeSlotRestrictionMessage,
       applications: [],
       lectureApplicationCountMap: {},
       lectureApplicationBreakdownMap: {},
