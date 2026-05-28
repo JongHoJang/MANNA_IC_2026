@@ -57,12 +57,12 @@ export async function PATCH(request: Request, context: RouteContext) {
       sessions,
     });
 
-    if (!result) {
+    if (!result.ok) {
       return NextResponse.json(
         {
-          message: '수정할 참가자를 찾지 못했습니다.',
+          message: result.message,
         },
-        { status: 404 },
+        { status: result.status },
       );
     }
 

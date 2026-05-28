@@ -1,6 +1,6 @@
 import { ModalPortal } from '@/app/_components/ModalPortal';
 import type { DayKey, Participant, TimeSlot, Lecture } from '@/types';
-import { getLectureTimeSlotRestrictionMessage, TIME_SLOTS } from '@/utils/lectures';
+import { getLectureEligibilityMessage, getLectureTimeSlotRestrictionMessage, TIME_SLOTS } from '@/utils/lectures';
 import { DAY_ORDER, SESSION_DAY_LABELS, TICKET_DAY_LABELS } from '@/utils/tickets';
 
 type FormState = {
@@ -40,6 +40,14 @@ function getLectureOptionLabel(lecture: Lecture) {
   }
 
   return lecture.title;
+}
+
+function getRestrictedLectureOptionLabel(lecture: Lecture, message: string | null) {
+  if (!message) {
+    return getLectureOptionLabel(lecture);
+  }
+
+  return `${getLectureOptionLabel(lecture)} (${message})`;
 }
 
 export function AdminParticipantDetailPanel({
@@ -189,8 +197,6 @@ export function AdminParticipantDetailPanel({
                           <div className="grid gap-3 sm:grid-cols-2">
                             {TIME_SLOTS.map((timeSlot) => {
                               const options = lectureOptionsByDay[day];
-                              const otherTimeSlot = timeSlot === '1타임' ? '2타임' : '1타임';
-                              const selectedOtherLectureId = sessionDraft[day][otherTimeSlot];
 
                               return (
                                 <label key={timeSlot} className="text-[15px]">
@@ -202,18 +208,21 @@ export function AdminParticipantDetailPanel({
                                     className="w-full rounded-[8px] border border-[#d8d4ca] bg-white px-4 py-3 text-[15px] outline-none disabled:bg-[#f5f5f3] disabled:text-[#9b9b97]"
                                   >
                                     <option value="">선택 안함</option>
-                                    {options.map((lecture) => (
-                                      <option
-                                        key={lecture.id}
-                                        value={lecture.id}
-                                        disabled={
-                                          (selectedOtherLectureId === lecture.id && sessionDraft[day][timeSlot] !== lecture.id) ||
-                                          Boolean(getLectureTimeSlotRestrictionMessage(lecture, timeSlot))
-                                        }
-                                      >
-                                        {getLectureOptionLabel(lecture)}
-                                      </option>
-                                    ))}
+                                    {options.map((lecture) => {
+                                      const timeSlotRestrictionMessage = getLectureTimeSlotRestrictionMessage(lecture, timeSlot);
+                                      const eligibilityMessage = getLectureEligibilityMessage(lecture, form.position);
+                                      const restrictionMessage = timeSlotRestrictionMessage ?? eligibilityMessage;
+
+                                      return (
+                                        <option
+                                          key={lecture.id}
+                                          value={lecture.id}
+                                          disabled={Boolean(restrictionMessage)}
+                                        >
+                                          {getRestrictedLectureOptionLabel(lecture, restrictionMessage)}
+                                        </option>
+                                      );
+                                    })}
                                   </select>
                                 </label>
                               );

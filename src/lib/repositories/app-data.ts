@@ -90,10 +90,19 @@ type ParticipantSessionSelectionInput = {
   lectureId: string | null;
 };
 
-type ParticipantUpdateResult = {
+type ParticipantUpdateSuccess = {
+  ok: true;
   participant: Participant;
   applications: Application[];
 };
+
+type ParticipantUpdateFailure = {
+  ok: false;
+  message: string;
+  status: 400 | 404;
+};
+
+type ParticipantUpdateResult = ParticipantUpdateSuccess | ParticipantUpdateFailure;
 
 export type AdminExportRow = {
   name: string;
@@ -243,6 +252,7 @@ function validateParticipantSessionSelections(
 ) {
   const participant = findParticipantById(participantId, bootstrapData.participants);
   const effectiveParticipantPosition = participantPosition ?? participant?.position ?? '';
+  const nextApplications = getMockSessionSelectionApplications(participantId, selections, bootstrapData);
 
   for (const selection of selections) {
     if (!selection.lectureId) {
@@ -270,41 +280,42 @@ function validateParticipantSessionSelections(
     if (eligibilityMessage) {
       return eligibilityMessage;
     }
+  }
 
-    const duplicateLecture = bootstrapData.applications.find(
-      (application) =>
-        application.participantId === participantId &&
-        application.day === selection.day &&
-        application.lectureId === selection.lectureId &&
-        application.timeSlot !== selection.timeSlot,
+  const participantApplications = nextApplications.filter((application) => application.participantId === participantId);
+  const duplicateSelection = participantApplications.find((application, _, allApplications) => {
+    return (
+      allApplications.filter((item) => item.day === application.day && item.lectureId === application.lectureId).length > 1
     );
+  });
 
-    if (duplicateLecture) {
-      return '같은 세션을 다른 슬롯에 중복으로 선택할 수 없습니다.';
-    }
+  if (duplicateSelection) {
+    return '같은 세션을 다른 슬롯에 중복으로 선택할 수 없습니다.';
+  }
 
-    const applicationCount = bootstrapData.applications.filter(
-      (application) =>
-        application.lectureId === selection.lectureId &&
-        !(application.participantId === participantId && application.day === selection.day && application.timeSlot === selection.timeSlot),
-    ).length;
+  const applicationCountByLecture = nextApplications.reduce<Record<string, number>>((acc, application) => {
+    acc[application.lectureId] = (acc[application.lectureId] ?? 0) + 1;
+    return acc;
+  }, {});
 
-    if (!isLectureFull(lecture, applicationCount)) {
+  for (const selection of selections) {
+    if (!selection.lectureId) {
       continue;
     }
 
-    const existing = bootstrapData.applications.find(
-      (application) =>
-        application.participantId === participantId &&
-        application.day === selection.day &&
-        application.timeSlot === selection.timeSlot,
-    );
+    const lecture = bootstrapData.lectures.find((item) => item.id === selection.lectureId);
 
-    if (existing?.lectureId === selection.lectureId) {
+    if (!lecture) {
       continue;
     }
 
-    return '정원이 모두 찬 세션입니다. 다른 세션을 선택해 주세요.';
+    if (!isLectureFull(lecture, applicationCountByLecture[lecture.id] ?? 0)) {
+      continue;
+    }
+
+    if ((applicationCountByLecture[lecture.id] ?? 0) > (lecture.capacity ?? 0)) {
+      return '정원이 모두 찬 세션입니다. 다른 세션을 선택해 주세요.';
+    }
   }
 
   return null;
@@ -916,19 +927,27 @@ async function updateParticipantSessions(
   return refreshed.applications;
 }
 
-export async function updateAdminParticipant(participantId: string, input: ParticipantUpdateInput): Promise<ParticipantUpdateResult | null> {
+export async function updateAdminParticipant(participantId: string, input: ParticipantUpdateInput): Promise<ParticipantUpdateResult> {
   const bootstrapData = await loadBootstrapData();
   const validationError = validateParticipantSessionSelections(bootstrapData, participantId, input.sessions, input.position);
 
   if (validationError) {
-    return null;
+    return {
+      ok: false,
+      message: validationError,
+      status: 400,
+    };
   }
 
   if (!hasSupabaseServerEnv()) {
     const target = mockParticipants.find((participant) => participant.id === participantId && !participant.isAdmin);
 
     if (!target) {
-      return null;
+      return {
+        ok: false,
+        message: '수정할 참가자를 찾지 못했습니다.',
+        status: 404,
+      };
     }
 
     target.name = input.name.trim();
@@ -945,6 +964,7 @@ export async function updateAdminParticipant(participantId: string, input: Parti
     const applications = await updateParticipantSessions(participantId, input.sessions, bootstrapData);
 
     return {
+      ok: true,
       participant: target,
       applications,
     };
@@ -966,13 +986,18 @@ export async function updateAdminParticipant(participantId: string, input: Parti
     .single();
 
   if (error || !data) {
-    throw new Error(error?.message ?? 'participant update failed');
+    return {
+      ok: false,
+      message: error?.message ?? '수정할 참가자를 찾지 못했습니다.',
+      status: 404,
+    };
   }
 
   const participant = mapParticipantRecord(data as ParticipantRecord);
   const applications = await updateParticipantSessions(participantId, input.sessions, bootstrapData);
 
   return {
+    ok: true,
     participant,
     applications,
   };
